@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Office Dashboard — Space &amp; Style</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0f1f4d;--ink-2:#34446f;--muted:#6a7595;--line:#dde2ee;--line-2:#c6cee2;--bg:#edf0f6;--card:#fff;
+--blue:#1f4fbf;--blue-soft:#e6edfc;--orange:#f29a1f;--orange-d:#d9820a;--red:#b3261e;--red-soft:#fdeceb;
+--amber:#9a5a00;--amber-soft:#fff1dc;--green:#17784a;--green-soft:#e3f5ec;
+--font:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:var(--font);font-size:14px;line-height:1.45;color:var(--ink);background:var(--bg);font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}input,select{font:inherit;color:var(--ink)}[hidden]{display:none!important}
+.topbar{position:sticky;top:0;z-index:60;background:var(--ink);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 18px;border-bottom:3px solid var(--orange)}
+.brand{font-weight:800;font-size:15px}.brand small{display:block;font-weight:500;font-size:11.5px;opacity:.75}
+.filechip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:5px 11px;font-size:12.5px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-actions{margin-left:auto;display:flex;gap:8px}
+.tb-btn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:6px 12px;font-weight:600;font-size:13px}
+.tb-btn:hover{background:rgba(255,255,255,.14)}
+.tb-btn.primary{background:var(--orange);border-color:var(--orange);color:#1c1200}
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 18px;display:flex;gap:24px;position:sticky;top:55px;z-index:50;overflow-x:auto}
+.tab{padding:12px 2px 10px;font-weight:700;color:var(--muted);border:0;background:none;border-bottom:3px solid transparent;font-size:14px;white-space:nowrap}
+.tab:hover{color:var(--ink)}.tab.active{color:var(--ink);border-bottom-color:var(--orange)}
+.wrap{max-width:1500px;margin:0 auto;padding:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:15px 17px;margin-bottom:14px}
+.card>h2{margin:0 0 4px;font-size:15px;font-weight:800}.card>.sub{margin:0 0 12px;color:var(--muted);font-size:12.5px}
+.hint{color:var(--muted);font-size:12.5px;margin:10px 0 0}
+.split2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:1000px){.split2{grid-template-columns:minmax(0,1fr)}}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.stat .k{font-size:11.5px;font-weight:700;color:var(--muted)}
+.stat .v{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:2px;line-height:1.15}
+.stat .s{font-size:12px;color:var(--ink-2);margin-top:3px}
+.stat.good .v{color:var(--green)}.stat.bad .v{color:var(--red)}.stat.warn .v{color:var(--amber)}
+.d{font-weight:700}.d.up,.up{color:var(--green)}.d.down,.down{color:var(--red)}.d.flat,.flat{color:var(--muted)}
+.alert{background:var(--red-soft);border:1px solid #f0b4b0;color:#7a1c16;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.alert.warn{background:var(--amber-soft);border-color:#f3d9a4;color:#6b4a06}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted);font-weight:700}
+.fld>span:empty{display:none}
+.fld b{font-size:14px;color:var(--ink);font-weight:700}
+input[type=date],select{border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;background:#fff;min-width:150px}
+input:focus,select:focus{outline:2px solid var(--blue-soft);border-color:var(--blue)}
+.fq{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.btn{border:1px solid var(--line-2);background:#fff;color:var(--ink);border-radius:6px;padding:7px 13px;font-weight:600;font-size:13px}
+.btn:hover{background:var(--blue-soft);border-color:var(--blue)}
+.btn.primary{background:var(--orange);border-color:var(--orange);color:#1c1200}.btn.primary:hover{background:var(--orange-d)}
+.btn.sm{padding:4px 10px;font-size:12px}.btn.big{padding:11px 22px;font-size:15px;margin-top:6px}
+.chip{border:1px solid var(--line-2);background:#fff;border-radius:999px;padding:4px 13px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.chip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar .lbl{font-size:11.5px;font-weight:700;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;min-width:520px}
+table.t th{font-size:11.5px;color:var(--muted);font-weight:700;text-align:left;padding:7px 8px;border-bottom:2px solid var(--line-2);white-space:nowrap}
+table.t th.r,table.t td.r{text-align:right}
+table.t td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.late td{background:#fff7f6}table.t tr.soon td{background:#fffaf0}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.pill.grey{background:var(--line);color:var(--ink-2)}.pill.blue{background:var(--blue-soft);color:var(--blue)}
+.pill.amber{background:var(--amber-soft);color:var(--amber)}.pill.red{background:var(--red-soft);color:var(--red)}
+.pill.green{background:var(--green-soft);color:var(--green)}
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar{display:grid;grid-template-columns:160px minmax(0,1fr) 150px;gap:10px;align-items:center;font-size:13px}
+.bar .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2);font-weight:600}
+.bar .track{background:var(--line);border-radius:5px;height:14px;overflow:hidden}
+.bar .track i{display:block;height:100%;border-radius:5px}
+.bar .val{text-align:right;font-weight:700;font-size:12.5px;white-space:nowrap}
+@media(max-width:700px){.bar{grid-template-columns:110px minmax(0,1fr) 92px}}
+.chart{width:100%;height:auto}.chart .ax{font-size:10px;fill:var(--muted);font-family:var(--font)}
+.issue{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.issue:last-child{border-bottom:0}
+.rowrefs{font-size:11.5px;color:var(--muted);margin-top:2px}
+.grid{display:grid;gap:10px 14px}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:800px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.welcome{text-align:center;padding:48px 30px}.welcome h2{font-size:20px}.welcome .sub{max-width:620px;margin:8px auto 4px}
+.welcome .hint{max-width:620px;margin:14px auto 0}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:400;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#loading{position:fixed;inset:0;background:rgba(15,31,77,.35);z-index:300;display:flex;align-items:center;justify-content:center}
+#loading div{background:#fff;padding:18px 26px;border-radius:10px;font-weight:700}
+body.drag:after{content:"Drop the job log here";position:fixed;inset:16px;border:3px dashed var(--orange);border-radius:14px;background:rgba(255,255,255,.85);z-index:500;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--ink)}
+/* printed report */
+.paper{background:#565c68;padding:20px;border-radius:10px;overflow:auto}
+.rpage{width:210mm;min-height:290mm;background:#fff;color:#000;margin:0 auto;padding:15mm 16mm;font-family:Arial,Helvetica,sans-serif;font-size:10pt;line-height:1.4;box-shadow:0 6px 26px rgba(0,0,0,.4)}
+.rpage h1{font-size:18pt;margin:0 0 1mm}.rpage .sub{color:#444;font-size:10pt}
+.rpage h2{font-size:12pt;margin:7mm 0 2mm;padding-bottom:1mm;border-bottom:.5mm solid #0f1f4d;color:#0f1f4d}
+.rpage .rhead{display:flex;justify-content:space-between;gap:10mm;border-bottom:.7mm solid #0f1f4d;padding-bottom:3mm}
+.rpage .meta{font-size:8.5pt;color:#333;text-align:right}
+.rpage .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:4mm}
+.rpage .kv div{border:.2mm solid #999;border-radius:1.5mm;padding:2.5mm}
+.rpage .kv .k{font-size:7.5pt;color:#555;font-weight:700}.rpage .kv .v{font-size:15pt;font-weight:800}
+.rpage p{margin:2mm 0}.rpage table{width:100%;border-collapse:collapse;font-size:9pt;margin-top:2mm}
+.rpage th{background:#0f1f4d;color:#fff;text-align:left;padding:1.5mm 2mm;font-size:8.5pt}
+.rpage th.r,.rpage td.r{text-align:right}
+.rpage td{border-bottom:.2mm solid #bbb;padding:1.3mm 2mm}
+.rpage .note{font-size:8.5pt;color:#444;margin-top:3mm}
+@media print{body{background:#fff}.topbar,.tabs,.toolbar,#toast,#loading{display:none!important}
+.wrap{padding:0;max-width:none}.paper{background:#fff;padding:0;border-radius:0}
+.rpage{box-shadow:none;width:auto;min-height:0;padding:0}@page{size:A4;margin:14mm}}
+
+.tgt-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tgt-head h2{margin:0}.tgt-target{font-size:12.5px;font-weight:700;color:var(--muted)}
+.tgt-bar{position:relative;height:14px;border-radius:7px;background:var(--line);margin:12px 0 4px;overflow:visible}
+.tgt-bar i{display:block;height:100%;border-radius:7px}.tgt-bar i.g{background:var(--green)}.tgt-bar i.b{background:var(--orange)}
+.tgt-bar .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.tgt-nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+@media(max-width:820px){.tgt-nums{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tgt-nums div{display:flex;flex-direction:column}
+.tgt-nums span{font-size:11.5px;font-weight:700;color:var(--muted)}
+.tgt-nums b{font-size:19px;font-weight:800;letter-spacing:-.4px}
+.tgt-nums small{font-size:11.5px;color:var(--ink-2)}
+.tgt-foot{display:flex;flex-direction:column;gap:3px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+table.t tr.future td{color:var(--muted);background:#fafbfe}
+.modal-ov{position:fixed;inset:0;background:rgba(15,31,77,.5);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto}
+.modal{background:#fff;border-radius:10px;width:min(620px,100%);box-shadow:0 24px 60px rgba(15,31,77,.35);padding:18px 20px 16px;max-height:88vh;overflow:auto}
+.modal.wide{width:min(880px,100%)}.modal h3{margin:0 0 4px;font-size:17px}.modal .sub{margin:0 0 12px;color:var(--muted);font-size:13px}
+.modal hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;position:sticky;bottom:-16px;background:#fff;padding:12px 0 2px;border-top:1px solid var(--line)}
+.modal input[type=text],.modal select{border:1px solid var(--line-2);border-radius:6px;padding:7px 9px;width:100%}
+.tline{border:1px solid var(--line-2);border-radius:8px;padding:13px 14px;margin-bottom:12px}
+.tmap{margin-top:10px}.tmap .lbl{font-size:11.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px}
+.tmap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px}
+.tchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12.5px}
+.tchip span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tchip input{width:54px!important;text-align:right;padding:4px 6px!important}
+.tchip em{font-style:normal;color:var(--muted);font-size:11.5px}
+.tline .btn.sm{margin-top:10px}
+/* ---------- phone ---------- */
+@media(max-width:620px){
+  .topbar{padding:8px 12px;gap:8px}
+  .brand{font-size:14px;line-height:1.2}
+  .brand small{display:none}
+  .filechip{display:none}
+  .tb-btn{padding:6px 10px;font-size:12px;white-space:nowrap}
+  .tabs{padding:0 12px;gap:18px;top:49px}
+  .wrap{padding:12px}
+  .card{padding:13px 14px}
+  .stats{gap:9px;margin-bottom:12px}
+  .stat{padding:10px 12px}.stat .v{font-size:20px}
+  .filters{padding:11px 12px;gap:9px}
+  .filters .fld{flex:1 1 44%;min-width:0}
+  input[type=date],select{min-width:0;width:100%}
+  .fq{margin-left:0;width:100%}
+  .alert{padding:10px 12px;font-size:13px}
+  .tgt-nums{gap:9px}.tgt-nums b{font-size:17px}
+  .paper{padding:0;background:transparent}
+  .rpage{width:auto;min-height:0;padding:14px;box-shadow:none;font-size:12px}
+  .rpage .kv{grid-template-columns:repeat(2,1fr)}
+  .rpage h1{font-size:17px}.rpage h2{font-size:14px}
+  .rpage .rhead{flex-direction:column;gap:8px}.rpage .meta{text-align:left}
+  .modal{padding:15px 15px 12px}
+}
+
+.rpage+.rpage{margin-top:20px}
+@media print{.rpage{break-after:page;page-break-after:always}.rpage.last{break-after:auto;page-break-after:auto}}
+
+</style></head><body>
+<header class="topbar">
+  <div class="brand">Design Office Dashboard<small>Space &amp; Style — turnaround, conversion, follow-ups</small></div>
+  <span class="filechip" id="fileName">No file loaded</span>
+  <div class="tb-actions">
+    <button class="tb-btn" data-action="cloud" title="Publish a copy to read on a phone">Phone copy</button>
+    <button class="tb-btn primary" data-action="open">Open / refresh job log</button>
+  </div>
+</header>
+<nav class="tabs" id="tabs"></nav>
+<main id="panel"></main>
+<div id="modalRoot"></div>
+<div id="loading" hidden><div>Reading the job log…</div></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* =====================================================================
+   Read an .xlsx in the browser with no library.
+   An xlsx is a zip of XML, and the browser can already inflate, so the
+   whole reader is a zip walk plus a little XML.
+   ===================================================================== */
+const canReadXlsx = () => typeof DecompressionStream === 'function';
+
+async function inflateRaw(bytes){
+  const ds = new DecompressionStream('deflate-raw');
+  const w = ds.writable.getWriter();
+  w.write(bytes).then(() => w.close()).catch(() => {});
+  const rd = ds.readable.getReader();
+  const chunks = []; let len = 0;
+  for(;;){ const r = await rd.read(); if(r.done) break; chunks.push(r.value); len += r.value.length; }
+  const out = new Uint8Array(len); let o = 0;
+  chunks.forEach(c => { out.set(c, o); o += c.length; });
+  return out;
+}
+const u16 = (b, i) => b[i] | (b[i + 1] << 8);
+const u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
+const utf8 = bytes => new TextDecoder('utf-8').decode(bytes);
+
+/* zip -> { name: Uint8Array } */
+async function unzip(buf){
+  const b = new Uint8Array(buf);
+  let eocd = -1;
+  for(let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--){
+    if(u32(b, i) === 0x06054b50){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error('That file is not a readable .xlsx (no zip directory found).');
+  const count = u16(b, eocd + 10);
+  let p = u32(b, eocd + 16);
+  const files = {};
+  for(let n = 0; n < count; n++){
+    if(u32(b, p) !== 0x02014b50) break;
+    const method = u16(b, p + 10);
+    const csize = u32(b, p + 20);
+    const nameLen = u16(b, p + 28), extraLen = u16(b, p + 30), cmtLen = u16(b, p + 32);
+    const lho = u32(b, p + 42);
+    const name = utf8(b.subarray(p + 46, p + 46 + nameLen));
+    const lNameLen = u16(b, lho + 26), lExtraLen = u16(b, lho + 28);
+    const start = lho + 30 + lNameLen + lExtraLen;
+    const raw = b.subarray(start, start + csize);
+    files[name] = { method, raw };
+    p += 46 + nameLen + extraLen + cmtLen;
+  }
+  const out = {};
+  for(const k of Object.keys(files)){
+    const f = files[k];
+    if(!/\.(xml|rels)$/i.test(k)) continue;
+    out[k] = f.method === 0 ? f.raw : await inflateRaw(f.raw);
+  }
+  return out;
+}
+
+/* --- tiny XML helpers (the files we read are machine-written and flat) --- */
+function xmlUnescape(s){
+  return s.replace(/&#(\d+);/g, (m, d) => String.fromCharCode(+d))
+          .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCharCode(parseInt(h, 16)))
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+}
+function attr(tag, name){
+  const m = new RegExp(name + '="([^"]*)"').exec(tag);
+  return m ? xmlUnescape(m[1]) : '';
+}
+
+/* shared strings */
+function readSharedStrings(xml){
+  if(!xml) return [];
+  const out = [];
+  const re = /<si>([\s\S]*?)<\/si>/g; let m;
+  while((m = re.exec(xml))){
+    let s = '';
+    const tre = /<t[^>]*>([\s\S]*?)<\/t>/g; let t;
+    while((t = tre.exec(m[1]))) s += xmlUnescape(t[1]);
+    out.push(s);
+  }
+  return out;
+}
+/* which style indexes are dates */
+function readDateStyles(xml){
+  const isDateFmt = f => /[dmyhs]/i.test(String(f).replace(/\[[^\]]*\]/g, '').replace(/"[^"]*"/g, ''));
+  const custom = {};
+  if(xml){
+    const re = /<numFmt[^>]*\/>/g; let m;
+    while((m = re.exec(xml))) custom[attr(m[0], 'numFmtId')] = attr(m[0], 'formatCode');
+  }
+  const builtinDate = {};
+  [14,15,16,17,18,19,20,21,22,27,30,36,45,46,47,50,57].forEach(i => builtinDate[i] = 1);
+  const styles = [];
+  if(xml){
+    const cx = /<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/.exec(xml);
+    if(cx){
+      const re = /<xf[^>]*>/g; let m;
+      while((m = re.exec(cx[1]))){
+        const id = attr(m[0], 'numFmtId');
+        styles.push(!!(builtinDate[+id] || (custom[id] && isDateFmt(custom[id]))));
+      }
+    }
+  }
+  return styles;
+}
+const colOf = ref => { let n = 0; for(let i = 0; i < ref.length; i++){ const c = ref.charCodeAt(i); if(c < 65 || c > 90) break; n = n * 26 + (c - 64); } return n - 1; };
+/* Excel serial -> JS Date (1900 system, allowing for the 1900 leap-year quirk) */
+function serialToDate(n){
+  if(!(n > 0)) return null;
+  const d = Math.floor(n);
+  const ms = Math.round((n - d) * 86400) * 1000;
+  return new Date(Date.UTC(1899, 11, 30 + (d <= 59 ? d + 1 : d)) + ms);
+}
+function readSheet(xml, shared, dateStyles){
+  const rows = [];
+  /* the self-closing forms must be tried first, or a greedy match swallows the next element */
+  const rre = /<row([^>]*?)\/>|<row([^>]*?)>([\s\S]*?)<\/row>/g;
+  let rm;
+  while((rm = rre.exec(xml))){
+    const rAttr = rm[1] !== undefined ? rm[1] : rm[2];
+    const rIdx = +attr('<row' + rAttr + '>', 'r');
+    const body = rm[3] || '';
+    if(!rIdx) continue;
+    const cells = [];
+    const cre = /<c([^>]*?)\/>|<c([^>]*?)>([\s\S]*?)<\/c>/g; let cm;
+    while((cm = cre.exec(body))){
+      const tag = (cm[1] !== undefined ? cm[1] : cm[2]) || '', inner = cm[3] || '';
+      const ref = attr('<c' + tag + '>', 'r');
+      const t = attr('<c' + tag + '>', 't');
+      const sAttr = /s="(\d+)"/.exec(tag);
+      const style = sAttr ? +sAttr[1] : -1;
+      let v = null;
+      if(t === 'inlineStr'){
+        let s = ''; const tre = /<t[^>]*>([\s\S]*?)<\/t>/g; let x;
+        while((x = tre.exec(inner))) s += xmlUnescape(x[1]);
+        v = s;
+      } else {
+        const vm = /<v>([\s\S]*?)<\/v>/.exec(inner);
+        if(vm){
+          const raw = xmlUnescape(vm[1]);
+          if(t === 's') v = shared[+raw] != null ? shared[+raw] : '';
+          else if(t === 'str' || t === 'e') v = raw;
+          else {
+            const n = parseFloat(raw);
+            v = (style >= 0 && dateStyles[style] && isFinite(n)) ? serialToDate(n) : (isFinite(n) ? n : raw);
+          }
+        }
+      }
+      if(v !== null && v !== '') cells[colOf(ref)] = v;
+    }
+    rows[rIdx - 1] = cells;
+  }
+  for(let i = 0; i < rows.length; i++) if(!rows[i]) rows[i] = [];
+  return rows;
+}
+/* -> [{ name, rows }] */
+async function readWorkbook(buf){
+  const files = await unzip(buf);
+  const get = k => files[k] ? utf8(files[k]) : '';
+  const shared = readSharedStrings(get('xl/sharedStrings.xml'));
+  const dateStyles = readDateStyles(get('xl/styles.xml'));
+  const wbXml = get('xl/workbook.xml');
+  const relsXml = get('xl/_rels/workbook.xml.rels');
+  const rels = {};
+  { const re = /<Relationship[^>]*\/>/g; let m;
+    while((m = re.exec(relsXml))) rels[attr(m[0], 'Id')] = attr(m[0], 'Target').replace(/^\//, '').replace(/^xl\//, ''); }
+  const sheets = [];
+  { const re = /<sheet[^>]*\/>/g; let m; let i = 1;
+    while((m = re.exec(wbXml))){
+      const name = attr(m[0], 'name');
+      const rid = attr(m[0], 'r:id') || attr(m[0], 'id');
+      let target = rels[rid] || ('worksheets/sheet' + i + '.xml');
+      const path = 'xl/' + target.replace(/^\.\//, '');
+      const xml = files[path] ? utf8(files[path]) : '';
+      if(xml) sheets.push({ name, rows: readSheet(xml, shared, dateStyles) });
+      i++;
+    }
+  }
+  if(!sheets.length) throw new Error('No worksheets could be read from that file.');
+  return sheets;
+}
+
+/* =====================================================================
+   Turning the team's sheet into numbers
+   ===================================================================== */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function num(v){ if(typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v == null ? '' : v).replace(/,/g,'').replace(/[^\d.\-]/g,'')); return isFinite(n) ? n : 0; }
+const r1 = n => Math.round(n * 10) / 10;
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+function fmt(n, dp = 0){
+  n = Number(n) || 0; const neg = n < 0, p = Math.abs(n).toFixed(dp).split('.');
+  return (neg ? '-' : '') + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (p[1] ? '.' + p[1] : '');
+}
+const pct = (a, b) => b ? r1(a / b * 100) : 0;
+const pad2 = n => String(n).padStart(2, '0');
+const DAY = 86400000;
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dOnly = d => d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+function asDate(v){
+  if(v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  if(typeof v === 'string'){
+    const m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/.exec(v.trim());
+    if(m){ let y = +m[3]; if(y < 100) y += 2000; return new Date(y, +m[2] - 1, +m[1]); }
+    const d = new Date(v); if(!isNaN(d)) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+  return null;
+}
+const ymd = d => d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) : '';
+const ym  = d => d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) : '';
+const ymLabel = k => { const [y, m] = k.split('-'); return MON[+m - 1] + ' ' + y; };
+const dmy = d => d ? pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() : '';
+const daysBetween = (a, b) => (a && b) ? Math.round((dOnly(b) - dOnly(a)) / DAY) : null;
+let TODAY = new Date(); TODAY = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+
+let toastTimer = null;
+function toast(msg){ const t = $('#toast'); if(!t) return; t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200); }
+function downloadBlob(blob, name){
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 400);
+}
+
+/* ---------- column matching: tolerant of wording, order and extra columns ---------- */
+const FIELDS = [
+  ['ref',      ['job ref','ref','reference','quote no','job request name']],
+  ['received', ['date received','date when drawings are received','date drawings received','received']],
+  ['client',   ['client / job name','client','job name','job request name','project']],
+  ['type',     ['job type','job type (lgs, ecohouse, etc)','type','material/building solution','product']],
+  ['rep',      ['sales rep','name of requestor','requestor','rep','sales person']],
+  ['designer', ['designer','name of designer']],
+  ['quoted',   ['date quoted','date of quote submission','quote date','date quote submitted']],
+  ['value',    ['sales value (ksh)','sales value','value','quote value','amount']],
+  ['status',   ['status','analysis category','outcome']],
+  ['temp',     ['lead temperature','lead qualification','temperature']],
+  ['wonDate',  ['date won','won date','order date','date of order','date order received','date when client makes initial payments']],
+  ['lastFup',  ['last follow-up','last follow up','last followup']],
+  ['nextFup',  ['next follow-up due','next follow-up','next follow up','follow up date','next action']]
+];
+const norm = s => String(s == null ? '' : s).toLowerCase().replace(/[\s_.]+/g, ' ').replace(/[^a-z0-9 ,/()+-]/g, '').trim();
+function mapColumns(header){
+  const h = header.map(norm);
+  const map = {};
+  FIELDS.forEach(([key, names]) => {
+    let idx = -1;
+    for(const n of names){ idx = h.indexOf(norm(n)); if(idx >= 0) break; }
+    if(idx < 0) for(const n of names){ idx = h.findIndex(x => x && (x.indexOf(norm(n)) === 0 || norm(n).indexOf(x) === 0)); if(idx >= 0) break; }
+    if(idx >= 0) map[key] = idx;
+  });
+  return map;
+}
+/* the sheet with the most recognised columns wins */
+function pickSheet(sheets){
+  let best = null;
+  sheets.forEach(sh => {
+    for(let r = 0; r < Math.min(8, sh.rows.length); r++){
+      const map = mapColumns(sh.rows[r] || []);
+      const score = Object.keys(map).length;
+      if(score >= 4 && (!best || score > best.score)) best = { sheet:sh, headerRow:r, map, score };
+    }
+  });
+  return best;
+}
+
+/* ---------- vocabulary tidying ---------- */
+/* A job typed "Asili, LGS and gutters" involves both products; anchoring the
+   match to the whole string used to file it under Asili alone. */
+const TYPE_RULES = [
+  [/ecohouse\s*structure/i, 'Ecohouse Structure'], [/ecohouse/i, 'Ecohouse'],
+  [/rainwater/i, 'Rainwater goods'], [/shingle/i, 'Asphalt shingles'],
+  [/rockwool/i, 'Rockwool'], [/ecoboard/i, 'Ecoboards'], [/wet\s*works/i, 'Wet works'],
+  [/^\s*app\s*$/i, 'APP'], [/^\s*fcb\b/i, 'FCB'], [/takeoff/i, 'Takeoff only']
+];
+function canonType(v){
+  const s = String(v == null ? '' : v).trim();
+  if(!s) return '';
+  const asili = /asili/i.test(s), lgs = /\blgs\b/i.test(s);
+  if(asili && lgs) return 'Asili + LGS';
+  if(asili) return 'Asili';
+  if(lgs) return 'LGS';
+  for(const [re, out] of TYPE_RULES) if(re.test(s)) return out;
+  if(/gutter/i.test(s)) return 'Gutters';
+  /* leave anything else as typed, but tidy SHOUTED entries so they do not split */
+  return s === s.toUpperCase() ? s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : s;
+}
+const WON = /^won$|^converted$/i;
+const LOST = /^lost|unresponsive|cancel|not required/i;
+const OPEN = /awaiting|pending|follow/i;
+function canonStatus(v){
+  const s = String(v == null ? '' : v).trim(); if(!s) return '';
+  if(WON.test(s)) return 'Won';
+  if(/price/i.test(s)) return 'Lost - price';
+  if(/unavail/i.test(s)) return 'Lost - product unavailable';
+  if(/delay/i.test(s)) return 'Lost - quotation delay';
+  if(/unresponsive/i.test(s)) return 'Unresponsive client';
+  if(/cancel|not required/i.test(s)) return 'Cancelled / not required';
+  if(OPEN.test(s)) return 'Awaiting client decision';
+  return s;
+}
+const outcomeOf = st => WON.test(st) ? 'won' : (LOST.test(st) ? 'lost' : (st ? 'open' : 'open'));
+function canonTemp(v){
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  if(!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+const titleName = v => { const s = String(v == null ? '' : v).trim(); return s ? s.replace(/\s+/g, ' ') : ''; };
+
+/* ---------- the loaded data ---------- */
+let DATA = { jobs:[], file:'', loadedAt:null, sheet:'', map:{}, missing:[], issues:[] };
+
+function buildJobs(picked){
+  const { sheet, headerRow, map } = picked;
+  const g = (row, k) => map[k] === undefined ? null : row[map[k]];
+  const jobs = [];
+  for(let r = headerRow + 1; r < sheet.rows.length; r++){
+    const row = sheet.rows[r] || [];
+    if(!row.length) continue;
+    const client = titleName(g(row, 'client'));
+    const received = asDate(g(row, 'received'));
+    const quoted = asDate(g(row, 'quoted'));
+    const statusRaw = String(g(row, 'status') || '').trim();
+    const tempRaw = String(g(row, 'temp') || '').trim();
+    if(!client && !received && !statusRaw) continue;
+    const status = canonStatus(statusRaw) || canonStatus(tempRaw);
+    const j = {
+      row: r + 1,
+      ref: String(g(row, 'ref') || '').trim(),
+      client, received, quoted,
+      type: canonType(g(row, 'type')), typeRaw: String(g(row, 'type') || '').trim(),
+      rep: titleName(g(row, 'rep')),
+      designer: titleName(g(row, 'designer')),
+      value: num(g(row, 'value')),
+      status, statusRaw,
+      temp: canonTemp(tempRaw),
+      wonDate: asDate(g(row, 'wonDate')),
+      lastFup: asDate(g(row, 'lastFup')),
+      nextFup: asDate(g(row, 'nextFup'))
+    };
+    j.outcome = outcomeOf(j.status || j.temp);
+    j.tat = (j.received && j.quoted) ? daysBetween(j.received, j.quoted) : null;
+    j.age = j.received ? daysBetween(j.received, TODAY) : null;
+    j.month = ym(j.received);
+    jobs.push(j);
+  }
+  return jobs;
+}
+function findIssues(jobs, map){
+  const out = [];
+  const add = (kind, msg, rows) => out.push({ kind, msg, rows: rows.slice(0, 60), count: rows.length });
+  const noType = jobs.filter(j => !j.type);
+  if(noType.length) add('warn', noType.length + ' rows have no job type, so they are missing from every product breakdown.', noType);
+  const noRep = jobs.filter(j => !j.rep);
+  if(noRep.length) add('warn', noRep.length + ' rows have no sales rep, so they cannot be followed up with anyone.', noRep);
+  const noStatus = jobs.filter(j => !j.status);
+  if(noStatus.length) add('warn', noStatus.length + ' rows have no status, so they are counted as still open.', noStatus);
+  const noQuote = jobs.filter(j => j.received && !j.quoted && j.outcome !== 'lost');
+  if(noQuote.length) add('info', noQuote.length + ' rows were received but never marked as quoted.', noQuote);
+  const backwards = jobs.filter(j => j.tat !== null && j.tat < 0);
+  if(backwards.length) add('bad', backwards.length + ' rows are quoted before they were received — check those dates.', backwards);
+  const wonNoValue = jobs.filter(j => j.outcome === 'won' && !j.value);
+  if(wonNoValue.length) add('bad', wonNoValue.length + ' won jobs have no sales value, so the won figure is understated.', wonNoValue);
+  /* the classic trap: two fields both recording the outcome, disagreeing */
+  const conflict = jobs.filter(j => /converted|won/i.test(j.temp) && j.statusRaw && !WON.test(canonStatus(j.statusRaw)));
+  if(conflict.length) add('bad', conflict.length + ' rows say the lead is Converted but the status column says something else. The status column is what counts, so these are NOT in the win rate. Decide which field is right and drop the other.', conflict);
+  /* spelling variants that would split a report */
+  const byCanon = {};
+  jobs.forEach(j => { if(!j.typeRaw) return; (byCanon[j.type] = byCanon[j.type] || {})[j.typeRaw] = 1; });
+  const split = Object.keys(byCanon).filter(k => Object.keys(byCanon[k]).length > 1);
+  if(split.length){
+    const eg = split.slice(0, 4).map(k => k + ' (' + Object.keys(byCanon[k]).join(', ') + ')').join('; ');
+    add('info', split.length + ' job types are typed more than one way and have been merged: ' + eg, []);
+  }
+  return out;
+}
+
+/* ---------- metrics ---------- */
+const inRange = (j, f) => {
+  if(f.from && (!j.received || j.received < f.from)) return false;
+  if(f.to && (!j.received || j.received > f.to)) return false;
+  if(f.type && j.type !== f.type) return false;
+  if(f.rep && j.rep !== f.rep) return false;
+  if(f.designer && j.designer !== f.designer) return false;
+  return true;
+};
+function filtered(){ return DATA.jobs.filter(j => inRange(j, F)); }
+function median(a){ if(!a.length) return 0; const s = a.slice().sort((x, y) => x - y); const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function percentile(a, p){ if(!a.length) return 0; const s = a.slice().sort((x, y) => x - y);
+  return s[Math.min(s.length - 1, Math.floor(s.length * p))]; }
+
+function tatStats(jobs){
+  const t = jobs.filter(j => j.tat !== null && j.tat >= 0 && j.tat <= 180).map(j => j.tat);
+  if(!t.length) return { n:0, median:0, mean:0, p90:0, sameDay:0, within1:0, within2:0, within3:0, over7:0 };
+  const c = n => t.filter(x => x <= n).length;
+  return { n:t.length, median:median(t), mean:r1(t.reduce((a, b) => a + b, 0) / t.length), p90:percentile(t, 0.9),
+    sameDay:pct(t.filter(x => x === 0).length, t.length), within1:pct(c(1), t.length),
+    within2:pct(c(2), t.length), within3:pct(c(3), t.length), over7:pct(t.filter(x => x > 7).length, t.length) };
+}
+function convStats(jobs){
+  const decided = jobs.filter(j => j.outcome !== 'open');
+  const won = jobs.filter(j => j.outcome === 'won');
+  const quoted = jobs.filter(j => j.quoted);
+  const wonValue = won.reduce((a, j) => a + j.value, 0);
+  const allValue = jobs.reduce((a, j) => a + j.value, 0);
+  const openValue = jobs.filter(j => j.outcome === 'open').reduce((a, j) => a + j.value, 0);
+  return { total:jobs.length, quoted:quoted.length, decided:decided.length, won:won.length,
+    lost:decided.length - won.length, open:jobs.length - decided.length,
+    rateDecided:pct(won.length, decided.length), rateAll:pct(won.length, jobs.length),
+    rateQuoted:pct(won.length, quoted.length),
+    wonValue, allValue, openValue, valueRate:pct(wonValue, allValue),
+    avgWon: won.length ? wonValue / won.length : 0 };
+}
+function groupBy(jobs, key){
+  const m = {};
+  jobs.forEach(j => { const k = j[key] || '(blank)'; (m[k] = m[k] || []).push(j); });
+  return Object.keys(m).map(k => {
+    const g = m[k], c = convStats(g), t = tatStats(g);
+    return { key:k, jobs:g, n:g.length, won:c.won, decided:c.decided, rate:c.rateDecided,
+      value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, tatN:t.n };
+  }).sort((a, b) => b.n - a.n);
+}
+function byMonth(jobs){
+  const m = {};
+  jobs.forEach(j => { if(!j.month) return; (m[j.month] = m[j.month] || []).push(j); });
+  return Object.keys(m).sort().map(k => {
+    const g = m[k], c = convStats(g), t = tatStats(g);
+    return { key:k, label:ymLabel(k), n:g.length, won:c.won, decided:c.decided, rate:c.rateDecided,
+      value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, jobs:g };
+  });
+}
+/* the follow-up pile: still open, oldest first */
+function followUps(jobs){
+  const open = jobs.filter(j => j.outcome === 'open');
+  const overdue = open.filter(j => j.nextFup && j.nextFup < TODAY);
+  const dueSoon = open.filter(j => j.nextFup && j.nextFup >= TODAY && daysBetween(TODAY, j.nextFup) <= 7);
+  const noDate = open.filter(j => !j.nextFup);
+  const stale = noDate.filter(j => j.age !== null && j.age > 14);
+  const bucket = j => {
+    const a = j.age == null ? 9999 : j.age;
+    if(a <= 7) return '0-7 days'; if(a <= 14) return '8-14 days';
+    if(a <= 30) return '15-30 days'; if(a <= 60) return '31-60 days'; return 'over 60 days';
+  };
+  const ages = {};
+  open.forEach(j => { const b = bucket(j); ages[b] = (ages[b] || 0) + 1; });
+  return { open, overdue, dueSoon, noDate, stale, ages,
+    order:['0-7 days','8-14 days','15-30 days','31-60 days','over 60 days'] };
+}
+
+/* =====================================================================
+   Screens
+   ===================================================================== */
+const TABS = [['overview','Overview'],['targets','Targets'],['tat','Turnaround'],['conv','Conversion'],['fup','Follow-ups'],['sales','Sales split'],['report','Monthly report'],['data','Data quality']];
+let F = { from:null, to:null, type:'', rep:'', designer:'' };
+const ui = { tab:'overview', reportMonth:'', sortFup:'age', print:false, fy:null, modal:null, showSql:false, keepMonth:false, salesMonth:'', reportDetail:true };
+
+const stat = (k, v, s, cls) => '<div class="stat ' + (cls || '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
+const KSH = n => 'KSh ' + fmt(n);
+
+/* ---------- small inline charts ---------- */
+function barChart(items, opts){
+  opts = opts || {};
+  if(!items.length) return '<div class="empty">Nothing to chart yet.</div>';
+  const max = Math.max(1, ...items.map(i => i.v));
+  return '<div class="bars">' + items.map(i => {
+    const w = Math.max(1, i.v / max * 100);
+    return '<div class="bar"><span class="lbl" title="' + esc(i.k) + '">' + esc(i.k) + '</span>' +
+      '<span class="track"><i style="width:' + w + '%;background:' + (i.c || 'var(--blue)') + '"></i></span>' +
+      '<span class="val">' + esc(i.t != null ? i.t : fmt(i.v)) + '</span></div>';
+  }).join('') + '</div>';
+}
+function lineChart(pts, opts){
+  opts = opts || {};
+  if(pts.length < 2) return '<div class="empty">At least two months of data are needed for a trend.</div>';
+  const W = 720, H = 190, P = 34;
+  const ys = pts.map(p => p.v);
+  const lo = Math.min(0, ...ys), hi = Math.max(1, ...ys) * 1.1;
+  const x = i => P + i * (W - P - 12) / (pts.length - 1);
+  const y = v => H - 22 - (v - lo) / (hi - lo) * (H - 44);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  const area = d + ' L' + x(pts.length - 1).toFixed(1) + ' ' + (H - 22) + ' L' + x(0).toFixed(1) + ' ' + (H - 22) + ' Z';
+  const ticks = [lo, (lo + hi) / 2, hi].map(v =>
+    '<line x1="' + P + '" x2="' + (W - 12) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" stroke="var(--line)"/>' +
+    '<text x="' + (P - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end" class="ax">' + fmt(v, opts.dp || 0) + '</text>').join('');
+  const every = Math.ceil(pts.length / 10);
+  const labels = pts.map((p, i) => i % every ? '' :
+    '<text x="' + x(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="ax">' + esc(p.k) + '</text>').join('');
+  const dots = pts.map((p, i) => '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="3" fill="var(--blue)"><title>' + esc(p.k) + ': ' + fmt(p.v, opts.dp || 0) + (opts.suffix || '') + '</title></circle>').join('');
+  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' + ticks +
+    '<path d="' + area + '" fill="var(--blue-soft)"/>' +
+    '<path d="' + d + '" fill="none" stroke="var(--blue)" stroke-width="2"/>' + dots + labels + '</svg>';
+}
+
+/* ---------- filter bar ---------- */
+function filterBar(){
+  const jobs = DATA.jobs;
+  const uniq = k => { const s = {}; jobs.forEach(j => { if(j[k]) s[j[k]] = 1; }); return Object.keys(s).sort(); };
+  const sel = (id, label, vals, cur) => '<label class="fld"><span>' + label + '</span><select data-f="' + id + '">' +
+    '<option value="">All</option>' + vals.map(v => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>';
+  return '<div class="filters">' +
+    '<label class="fld"><span>From</span><input type="date" data-f="from" value="' + (F.from ? ymd(F.from) : '') + '"></label>' +
+    '<label class="fld"><span>To</span><input type="date" data-f="to" value="' + (F.to ? ymd(F.to) : '') + '"></label>' +
+    sel('type', 'Product', uniq('type'), F.type) +
+    sel('rep', 'Sales rep', uniq('rep'), F.rep) +
+    sel('designer', 'Designer', uniq('designer'), F.designer) +
+    '<div class="fq"><button class="btn sm" data-action="quick" data-q="mtd">This month</button>' +
+    '<button class="btn sm" data-action="quick" data-q="last">Last month</button>' +
+    '<button class="btn sm" data-action="quick" data-q="90">Last 90 days</button>' +
+    '<button class="btn sm" data-action="quick" data-q="ytd">This year</button>' +
+    '<button class="btn sm" data-action="quick" data-q="all">All</button></div></div>';
+}
+
+/* ---------- Overview ---------- */
+function tabOverview(){
+  const jobs = filtered(), t = tatStats(jobs), c = convStats(jobs), f = followUps(jobs);
+  const months = byMonth(jobs);
+  const last = months[months.length - 1], prev = months[months.length - 2];
+  const delta = (a, b, invert) => {
+    if(a == null || b == null) return '';
+    const d = r1(a - b); if(!d) return '<span class="d flat">level</span>';
+    const good = invert ? d < 0 : d > 0;
+    return '<span class="d ' + (good ? 'up' : 'down') + '">' + (d > 0 ? '+' : '') + fmt(d, 1) + ' vs last month</span>';
+  };
+  return '<div class="wrap">' + filterBar() +
+    '<div class="stats">' +
+      stat('Jobs received', fmt(c.total), c.quoted + ' quoted · ' + c.open + ' still open') +
+      stat('Median quote TAT', fmt(t.median, 1) + ' days', t.within2 + '% within 2 days' + (last && prev ? ' · ' + delta(last.tat, prev.tat, true) : ''), t.median <= 2 ? 'good' : t.median <= 4 ? 'warn' : 'bad') +
+      stat('Conversion', fmt(c.rateDecided, 1) + '%', c.won + ' won of ' + c.decided + ' decided' + (last && prev ? ' · ' + delta(last.rate, prev.rate) : ''), c.rateDecided >= 25 ? 'good' : c.rateDecided >= 12 ? 'warn' : 'bad') +
+      stat('Won value', KSH(c.wonValue), fmt(c.valueRate, 1) + '% of ' + KSH(c.allValue) + ' quoted') +
+    '</div>' +
+    (f.overdue.length ? '<div class="alert"><b>' + f.overdue.length + ' follow-ups are overdue</b> — worth ' + KSH(f.overdue.reduce((a, j) => a + j.value, 0)) +
+      '. <button class="btn sm" data-action="tab" data-tab="fup">Open the list</button></div>' : '') +
+    '<div class="split2">' +
+      '<section class="card"><h2>Jobs received each month</h2>' + lineChart(months.map(m => ({ k:m.label.slice(0, 3) + ' ' + m.label.slice(-2), v:m.n }))) + '</section>' +
+      '<section class="card"><h2>Median quote turnaround (days)</h2>' + lineChart(months.map(m => ({ k:m.label.slice(0, 3) + ' ' + m.label.slice(-2), v:m.tat })), { dp:1, suffix:' days' }) + '</section>' +
+    '</div>' +
+    '<div class="split2">' +
+      '<section class="card"><h2>Where the work comes from</h2>' +
+        barChart(groupBy(jobs, 'type').slice(0, 8).map(g => ({ k:g.key, v:g.n, t:fmt(g.n) + '  (' + fmt(g.rate, 0) + '% won)' }))) + '</section>' +
+      '<section class="card"><h2>Open pipeline by age</h2>' +
+        barChart(f.order.filter(k => f.ages[k]).map(k => ({ k:k, v:f.ages[k],
+          c:(k === 'over 60 days' || k === '31-60 days') ? 'var(--red)' : k === '15-30 days' ? 'var(--orange)' : 'var(--blue)' }))) +
+        '<p class="hint">' + f.open.length + ' jobs are still waiting on the client.</p></section>' +
+    '</div></div>';
+}
+
+/* ---------- Turnaround ---------- */
+function tabTat(){
+  const jobs = filtered(), t = tatStats(jobs);
+  const dist = [['Same day', j => j.tat === 0], ['1 day', j => j.tat === 1], ['2 days', j => j.tat === 2],
+                ['3-5 days', j => j.tat >= 3 && j.tat <= 5], ['6-10 days', j => j.tat >= 6 && j.tat <= 10],
+                ['over 10 days', j => j.tat > 10]];
+  const withTat = jobs.filter(j => j.tat !== null && j.tat >= 0);
+  const slow = withTat.filter(j => j.tat > 7).sort((a, b) => b.tat - a.tat).slice(0, 25);
+  const tbl = (rows, cols) => '<div class="tablewrap"><table class="t"><thead><tr>' + cols.map(c => '<th' + (c[2] ? ' class="r"' : '') + '>' + c[0] + '</th>').join('') + '</tr></thead><tbody>' +
+    (rows.length ? rows.map(r => '<tr>' + cols.map(c => '<td' + (c[2] ? ' class="r"' : '') + '>' + c[1](r) + '</td>').join('') + '</tr>').join('')
+      : '<tr><td colspan="' + cols.length + '" class="empty">No data.</td></tr>') + '</tbody></table></div>';
+  return '<div class="wrap">' + filterBar() +
+    '<div class="stats">' +
+      stat('Median', fmt(t.median, 1) + ' days', 'half are quoted faster than this') +
+      stat('Average', fmt(t.mean, 1) + ' days', 'pulled up by the slow tail') +
+      stat('Slowest 10%', 'over ' + fmt(t.p90, 0) + ' days', '9 in 10 are quicker') +
+      stat('Beyond a week', fmt(t.over7, 1) + '%', 'of ' + t.n + ' quoted jobs', t.over7 > 15 ? 'bad' : t.over7 > 8 ? 'warn' : 'good') +
+    '</div>' +
+    '<section class="card"><h2>How quickly quotes go out</h2>' +
+      barChart(dist.map(d => ({ k:d[0], v:withTat.filter(d[1]).length,
+        t:fmt(withTat.filter(d[1]).length) + '  (' + fmt(pct(withTat.filter(d[1]).length, withTat.length), 0) + '%)',
+        c:/over 10|6-10/.test(d[0]) ? 'var(--red)' : /3-5/.test(d[0]) ? 'var(--orange)' : 'var(--green)' }))) +
+      '<p class="hint">Measured from the day drawings arrive to the day the quotation goes back.</p></section>' +
+    '<div class="split2">' +
+      '<section class="card"><h2>By designer</h2>' + tbl(groupBy(jobs, 'designer').filter(g => g.tatN >= 3),
+        [['Designer', g => esc(g.key)], ['Quoted', g => fmt(g.tatN), 1], ['Median days', g => fmt(g.tat, 1), 1], ['Average', g => fmt(g.tatMean, 1), 1]]) + '</section>' +
+      '<section class="card"><h2>By product</h2>' + tbl(groupBy(jobs, 'type').filter(g => g.tatN >= 3),
+        [['Product', g => esc(g.key)], ['Quoted', g => fmt(g.tatN), 1], ['Median days', g => fmt(g.tat, 1), 1], ['Average', g => fmt(g.tatMean, 1), 1]]) + '</section>' +
+    '</div>' +
+    '<section class="card"><h2>The slowest ' + slow.length + ' quotes</h2><p class="sub">These are what move the average. Worth understanding before setting a target.</p>' +
+      tbl(slow, [['Client', j => esc(j.client)], ['Product', j => esc(j.type)], ['Designer', j => esc(j.designer)],
+        ['Received', j => dmy(j.received)], ['Quoted', j => dmy(j.quoted)], ['Days', j => '<b>' + j.tat + '</b>', 1],
+        ['Outcome', j => outcomePill(j)]]) + '</section></div>';
+}
+const outcomePill = j => '<span class="pill ' + (j.outcome === 'won' ? 'green' : j.outcome === 'lost' ? 'red' : 'amber') + '">' + esc(j.status || 'Open') + '</span>';
+
+/* ---------- Conversion ---------- */
+function tabConv(){
+  const jobs = filtered(), c = convStats(jobs);
+  const months = byMonth(jobs);
+  const lossRows = {};
+  jobs.filter(j => j.outcome === 'lost').forEach(j => { const k = j.status || 'Not stated'; lossRows[k] = (lossRows[k] || 0) + 1; });
+  const losses = Object.keys(lossRows).map(k => ({ k:k, v:lossRows[k] })).sort((a, b) => b.v - a.v);
+  const grp = (key, title) => {
+    const g = groupBy(jobs, key).filter(x => x.decided >= 3);
+    return '<section class="card"><h2>' + title + '</h2><div class="tablewrap"><table class="t">' +
+      '<thead><tr><th>' + title.replace('By ', '') + '</th><th class="r">Jobs</th><th class="r">Decided</th><th class="r">Won</th><th class="r">Win rate</th><th class="r">Won value</th></tr></thead><tbody>' +
+      (g.length ? g.map(x => '<tr><td>' + esc(x.key) + '</td><td class="r">' + fmt(x.n) + '</td><td class="r">' + fmt(x.decided) + '</td><td class="r">' + fmt(x.won) + '</td>' +
+        '<td class="r"><b>' + fmt(x.rate, 1) + '%</b></td><td class="r">' + fmt(x.wonValue) + '</td></tr>').join('')
+        : '<tr><td colspan="6" class="empty">Not enough decided jobs yet.</td></tr>') + '</tbody></table></div></section>';
+  };
+  return '<div class="wrap">' + filterBar() +
+    '<div class="stats">' +
+      stat('Win rate (decided)', fmt(c.rateDecided, 1) + '%', c.won + ' won of ' + c.decided + ' decided', c.rateDecided >= 25 ? 'good' : c.rateDecided >= 12 ? 'warn' : 'bad') +
+      stat('Win rate (all received)', fmt(c.rateAll, 1) + '%', c.open + ' still undecided') +
+      stat('Won value', KSH(c.wonValue), 'average ' + KSH(c.avgWon) + ' a job') +
+      stat('Open pipeline', KSH(c.openValue), c.open + ' jobs awaiting a decision') +
+    '</div>' +
+    '<section class="card"><h2>Win rate by month</h2>' + lineChart(months.map(m => ({ k:m.label.slice(0, 3) + ' ' + m.label.slice(-2), v:m.rate })), { dp:1, suffix:'%' }) +
+      '<p class="hint">Of the jobs received that month which have since been decided.</p></section>' +
+    '<div class="split2">' +
+      '<section class="card"><h2>Why jobs are lost</h2>' + barChart(losses.map(l => ({ k:l.k, v:l.v, c:'var(--red)' }))) + '</section>' +
+      '<section class="card"><h2>Win rate by product</h2>' +
+        barChart(groupBy(jobs, 'type').filter(g => g.decided >= 3).map(g => ({ k:g.key, v:g.rate, t:fmt(g.rate, 1) + '%  (' + g.won + '/' + g.decided + ')' }))) + '</section>' +
+    '</div>' + grp('rep', 'By sales rep') + grp('designer', 'By designer') + '</div>';
+}
+
+/* ---------- Follow-ups ---------- */
+function tabFup(){
+  const jobs = filtered(), f = followUps(jobs);
+  const sorters = { age:(a, b) => (b.age || 0) - (a.age || 0), value:(a, b) => b.value - a.value,
+    due:(a, b) => (a.nextFup ? a.nextFup : new Date(8640000000000)) - (b.nextFup ? b.nextFup : new Date(8640000000000)) };
+  const list = f.open.slice().sort(sorters[ui.sortFup] || sorters.age);
+  const rowCls = j => (j.nextFup && j.nextFup < TODAY) ? 'late' : (j.nextFup && daysBetween(TODAY, j.nextFup) <= 7) ? 'soon' : '';
+  return '<div class="wrap">' + filterBar() +
+    '<div class="stats">' +
+      stat('Open jobs', fmt(f.open.length), KSH(f.open.reduce((a, j) => a + j.value, 0)) + ' of pipeline') +
+      stat('Overdue follow-ups', fmt(f.overdue.length), 'the date has passed', f.overdue.length ? 'bad' : 'good') +
+      stat('Due this week', fmt(f.dueSoon.length), 'plan these in') +
+      stat('No follow-up date', fmt(f.noDate.length), f.stale.length + ' of them older than 2 weeks', f.stale.length ? 'warn' : '') +
+    '</div>' +
+    '<section class="card"><h2>Open jobs</h2><p class="sub">Everything the client has not decided on. Red is overdue, amber is due within a week.</p>' +
+      '<div class="toolbar"><span class="lbl">Sort by</span>' +
+      ['age|Oldest first', 'value|Biggest value', 'due|Follow-up date'].map(o => { const [k, l] = o.split('|');
+        return '<button class="chip ' + (ui.sortFup === k ? 'on' : '') + '" data-action="sortfup" data-k="' + k + '">' + l + '</button>'; }).join('') +
+      '<span style="flex:1"></span><button class="btn" data-action="export-fup">Export this list</button></div>' +
+      '<div class="tablewrap"><table class="t"><thead><tr><th>Client / job</th><th>Product</th><th>Sales rep</th>' +
+      '<th class="r">Value</th><th>Received</th><th class="r">Age</th><th>Last chased</th><th>Next due</th><th>Lead</th></tr></thead><tbody>' +
+      (list.length ? list.map(j => '<tr class="' + rowCls(j) + '"><td>' + esc(j.client || '(no name)') + '</td><td>' + esc(j.type) + '</td><td>' + esc(j.rep) + '</td>' +
+        '<td class="r">' + (j.value ? fmt(j.value) : '—') + '</td><td>' + dmy(j.received) + '</td><td class="r">' + (j.age == null ? '—' : j.age + 'd') + '</td>' +
+        '<td>' + (j.lastFup ? dmy(j.lastFup) : '—') + '</td><td>' + (j.nextFup ? dmy(j.nextFup) + (j.nextFup < TODAY ? ' <span class="pill red">overdue</span>' : '') : '<span class="pill grey">not set</span>') + '</td>' +
+        '<td>' + (j.temp ? '<span class="pill ' + (/hot/i.test(j.temp) ? 'red' : /warm/i.test(j.temp) ? 'amber' : 'grey') + '">' + esc(j.temp) + '</span>' : '—') + '</td></tr>').join('')
+        : '<tr><td colspan="9" class="empty">Nothing open in this selection.</td></tr>') + '</tbody></table></div></section>' +
+    '<section class="card"><h2>Who is sitting on the most</h2>' +
+      barChart(groupBy(f.open, 'rep').slice(0, 10).map(g => ({ k:g.key, v:g.n, t:fmt(g.n) + '  (' + KSH(g.value) + ')' }))) + '</section></div>';
+}
+
+/* ---------- Data quality ---------- */
+function tabData(){
+  const issues = DATA.issues;
+  const badge = k => k === 'bad' ? 'red' : k === 'warn' ? 'amber' : 'blue';
+  return '<div class="wrap">' +
+    '<section class="card"><h2>What was loaded</h2><div class="grid g4">' +
+      '<div class="fld"><span>File</span><b>' + esc(DATA.file || '—') + '</b></div>' +
+      '<div class="fld"><span>Sheet</span><b>' + esc(DATA.sheet || '—') + '</b></div>' +
+      '<div class="fld"><span>Rows read</span><b>' + fmt(DATA.jobs.length) + '</b></div>' +
+      '<div class="fld"><span>Loaded</span><b>' + (DATA.loadedAt ? DATA.loadedAt.toLocaleString('en-GB') : '—') + '</b></div>' +
+    '</div>' +
+    (DATA.missing.length ? '<div class="alert warn" style="margin-top:12px"><b>Columns not found:</b> ' + DATA.missing.map(esc).join(', ') +
+      '. Anything that depends on them is left out.</div>' : '<p class="hint">Every expected column was found.</p>') + '</section>' +
+    '<section class="card"><h2>Things worth fixing in the sheet</h2><p class="sub">These do not stop the report, but they make the numbers weaker than they look.</p>' +
+      (issues.length ? issues.map(i => '<div class="issue"><span class="pill ' + badge(i.kind) + '">' + (i.kind === 'bad' ? 'fix' : i.kind === 'warn' ? 'gap' : 'note') + '</span>' +
+        '<div><div>' + esc(i.msg) + '</div>' + (i.rows.length ? '<div class="rowrefs">Sheet rows: ' + i.rows.slice(0, 25).map(r => r.row).join(', ') + (i.count > 25 ? ' … and ' + (i.count - 25) + ' more' : '') + '</div>' : '') + '</div></div>').join('')
+        : '<div class="empty">Nothing to flag — the sheet is clean.</div>') + '</section>' +
+    '<section class="card"><h2>How the columns were matched</h2><div class="tablewrap"><table class="t"><thead><tr><th>Needed</th><th>Found in your sheet</th></tr></thead><tbody>' +
+      FIELDS.map(f => '<tr><td>' + esc(f[0]) + '</td><td>' + (DATA.map[f[0]] === undefined ? '<span class="pill grey">not found</span>' : '<span class="pill green">column ' + (DATA.map[f[0]] + 1) + '</span>') + '</td></tr>').join('') +
+      '</tbody></table></div></section></div>';
+}
+
+/* =====================================================================
+   Annual targets, pace against them, and year-on-year
+   ===================================================================== */
+const TKEY = 'dash_targets_v1';
+const DEFAULT_TARGETS = {
+  fyStart: 1,            /* 1 = January */
+  tatTarget: 2,          /* days; blank to switch the TAT target off */
+  lines: [
+    { id:'lgs',   name:'LGS',                  annual:400000000, map:{ 'LGS':100, 'Asili + LGS':50 } },
+    { id:'asili', name:'Asili roofing tiles',  annual:500000000, map:{ 'Asili':100, 'Asili + LGS':50 } }
+  ]
+};
+let T = JSON.parse(JSON.stringify(DEFAULT_TARGETS));
+function loadTargets(){
+  try{ const s = JSON.parse(localStorage.getItem(TKEY) || 'null');
+    if(s && Array.isArray(s.lines)) T = Object.assign(JSON.parse(JSON.stringify(DEFAULT_TARGETS)), s);
+  }catch(e){}
+}
+function saveTargets(){ try{ localStorage.setItem(TKEY, JSON.stringify(T)); }catch(e){} }
+
+/* the financial year a date falls in, named by the year it starts */
+function fyOf(d){
+  if(!d) return null;
+  const s = +T.fyStart || 1;
+  return d.getMonth() + 1 >= s ? d.getFullYear() : d.getFullYear() - 1;
+}
+function fyRange(y){
+  const s = +T.fyStart || 1;
+  return { from:new Date(y, s - 1, 1), to:new Date(y + 1, s - 1, 0) };
+}
+const fyLabel = y => (+T.fyStart === 1) ? String(y) : (y + '/' + String(y + 1).slice(2));
+/* a won job counts on the date it was won; the log rarely has that, so fall back */
+const wonOn = j => j.wonDate || j.received;
+const weightFor = (line, type) => (line.map && line.map[type] != null) ? num(line.map[type]) / 100 : 0;
+
+function lineFigures(line, y){
+  const R = fyRange(y);
+  const inFy = (d) => d && d >= R.from && d <= R.to;
+  let won = 0, wonJobs = 0, open = 0, openJobs = 0, quoted = 0;
+  const byMonth = {};
+  DATA.jobs.forEach(j => {
+    const w = weightFor(line, j.type);
+    if(!w) return;
+    const v = j.value * w;
+    if(j.outcome === 'won' && inFy(wonOn(j))){
+      won += v; wonJobs++;
+      const k = ym(wonOn(j)); byMonth[k] = (byMonth[k] || 0) + v;
+    }
+    if(j.outcome === 'open' && inFy(j.received)){ open += v; openJobs++; }
+    if(inFy(j.received)) quoted += v;
+  });
+  /* how far through the year we are */
+  const today = TODAY < R.from ? R.from : (TODAY > R.to ? R.to : TODAY);
+  const totalDays = Math.round((R.to - R.from) / DAY) + 1;
+  const goneDays = Math.round((today - R.from) / DAY) + 1;
+  const elapsed = Math.max(0, Math.min(1, goneDays / totalDays));
+  const expected = line.annual * elapsed;
+  const monthsLeft = Math.max(0, (R.to.getFullYear() * 12 + R.to.getMonth()) - (today.getFullYear() * 12 + today.getMonth()));
+  return { line, y, range:R, won, wonJobs, open, openJobs, quoted, byMonth,
+    target:line.annual, pctTarget:pct(won, line.annual), elapsedPct:r1(elapsed * 100),
+    expected, variance:won - expected, gap:Math.max(0, line.annual - won),
+    monthsLeft, perMonth: monthsLeft > 0 ? (line.annual - won) / monthsLeft : 0,
+    coverage: line.annual ? pct(won + open, line.annual) : 0 };
+}
+function fyOptions(){
+  const s = {};
+  DATA.jobs.forEach(j => { const y = fyOf(j.received); if(y != null) s[y] = 1; });
+  const ks = Object.keys(s).map(Number).sort((a, b) => b - a);
+  return ks.length ? ks : [fyOf(TODAY)];
+}
+
+/* ---------- the Targets screen ---------- */
+function tabTargets(){
+  const years = fyOptions();
+  if(ui.fy == null || years.indexOf(ui.fy) < 0) ui.fy = years[0];
+  const figs = T.lines.map(l => lineFigures(l, ui.fy));
+  const totTarget = figs.reduce((a, f) => a + f.target, 0);
+  const totWon = figs.reduce((a, f) => a + f.won, 0);
+  const totOpen = figs.reduce((a, f) => a + f.open, 0);
+  const el = figs.length ? figs[0].elapsedPct : 0;
+  const prev = T.lines.map(l => lineFigures(l, ui.fy - 1));
+  const totPrev = prev.reduce((a, f) => a + f.won, 0);
+
+  const card = (f, i) => {
+    const p = prev[i];
+    const behind = f.variance < 0;
+    return '<section class="card"><div class="tgt-head"><h2>' + esc(f.line.name) + '</h2>' +
+      '<span class="tgt-target">Target ' + KSH(f.target) + '</span></div>' +
+      '<div class="tgt-bar"><i style="width:' + Math.min(100, f.pctTarget) + '%" class="' + (behind ? 'b' : 'g') + '"></i>' +
+        '<span class="mark" style="left:' + Math.min(100, f.elapsedPct) + '%" title="where the year has got to"></span></div>' +
+      '<div class="tgt-nums">' +
+        '<div><span>Won so far</span><b>' + KSH(f.won) + '</b><small>' + f.wonJobs + ' jobs</small></div>' +
+        '<div><span>Of target</span><b class="' + (behind ? 'down' : 'up') + '">' + fmt(f.pctTarget, 1) + '%</b><small>year is ' + fmt(f.elapsedPct, 0) + '% gone</small></div>' +
+        '<div><span>' + (behind ? 'Behind pace by' : 'Ahead of pace by') + '</span><b class="' + (behind ? 'down' : 'up') + '">' + KSH(Math.abs(f.variance)) + '</b><small>pace says ' + KSH(f.expected) + '</small></div>' +
+        '<div><span>Needed each month</span><b>' + (f.monthsLeft ? KSH(f.perMonth) : '—') + '</b><small>' + (f.monthsLeft ? f.monthsLeft + ' months left' : 'year closed') + '</small></div>' +
+      '</div>' +
+      '<div class="tgt-foot"><span>Open pipeline carrying ' + KSH(f.open) + ' across ' + f.openJobs + ' jobs — enough to reach <b>' + fmt(f.coverage, 0) + '%</b> of target if every one converted.</span>' +
+      (p && p.won ? '<span>Same point last year: ' + KSH(p.won) + ' (' + delta(f.won, p.won, false, 0) + ').</span>' : '') + '</div></section>';
+  };
+  /* month grid */
+  const monthsOfFy = (() => { const R = fyRange(ui.fy), out = [];
+    for(let d = new Date(R.from); d <= R.to; d.setMonth(d.getMonth() + 1)) out.push(ym(new Date(d)));
+    return out; })();
+  const grid = '<section class="card"><h2>Won value by month</h2>' +
+    '<div class="tablewrap"><table class="t"><thead><tr><th>Month</th>' +
+    T.lines.map(l => '<th class="r">' + esc(l.name) + '</th>').join('') + '<th class="r">Total</th><th class="r">Against pace</th></tr></thead><tbody>' +
+    monthsOfFy.map((k, idx) => {
+      const vals = figs.map(f => f.byMonth[k] || 0);
+      const tot = vals.reduce((a, b) => a + b, 0);
+      const pace = totTarget / 12;
+      const future = new Date(k + '-01') > TODAY;
+      return '<tr' + (future ? ' class="future"' : '') + '><td>' + ymLabel(k) + '</td>' +
+        vals.map(v => '<td class="r">' + (v ? fmt(v) : '—') + '</td>').join('') +
+        '<td class="r"><b>' + (tot ? fmt(tot) : '—') + '</b></td>' +
+        '<td class="r">' + (future ? '' : '<span class="' + (tot >= pace ? 'up' : 'down') + '">' + (tot >= pace ? '+' : '') + fmt(tot - pace) + '</span>') + '</td></tr>';
+    }).join('') +
+    '</tbody><tfoot><tr><td>Total</td>' + figs.map(f => '<td class="r">' + fmt(f.won) + '</td>').join('') +
+    '<td class="r">' + fmt(totWon) + '</td><td class="r">' + fmt(totWon - totTarget * (el / 100)) + '</td></tr></tfoot></table></div>' +
+    '<p class="hint">Pace is the annual target spread evenly over twelve months — a rough guide, not a seasonal forecast.</p></section>';
+
+  return '<div class="wrap">' +
+    '<div class="toolbar"><span class="lbl">Financial year</span>' +
+    '<select data-f="fy">' + years.map(y => '<option value="' + y + '"' + (y === ui.fy ? ' selected' : '') + '>' + fyLabel(y) + '</option>').join('') + '</select>' +
+    '<span style="flex:1"></span><button class="btn" data-action="edit-targets">Edit targets</button></div>' +
+    (DATA.map.wonDate === undefined ? '<div class="alert warn"><b>No "Date won" column in the log.</b> Won value is being counted in the month the request was <i>received</i>, not the month the order came in. For target tracking that is the wrong month whenever a job takes weeks to close — add a Date won column to the log and this corrects itself.</div>' : '') +
+    '<div class="stats">' +
+      stat('Combined target', KSH(totTarget), T.lines.length + ' product lines') +
+      stat('Won so far', KSH(totWon), fmt(pct(totWon, totTarget), 1) + '% of target', pct(totWon, totTarget) >= el ? 'good' : 'bad') +
+      stat('Year elapsed', fmt(el, 0) + '%', 'pace value ' + KSH(totTarget * el / 100)) +
+      stat('Open pipeline', KSH(totOpen), 'weighted to these lines') +
+    '</div>' +
+    figs.map(card).join('') + grid + '</div>';
+}
+function targetsModal(){
+  const types = (() => { const s = {}; DATA.jobs.forEach(j => { if(j.type) s[j.type] = 1; }); return Object.keys(s).sort(); })();
+  const row = (l, i) => '<div class="tline"><div class="grid g2">' +
+      '<label class="fld"><span>Product line</span><input type="text" data-t="name" data-i="' + i + '" value="' + esc(l.name) + '"></label>' +
+      '<label class="fld"><span>Annual target (' + esc(settingsCur()) + ')</span><input type="text" inputmode="decimal" class="r" data-t="annual" data-i="' + i + '" value="' + (l.annual || '') + '"></label>' +
+    '</div><div class="tmap"><span class="lbl">Which job types count towards it, and by how much</span><div class="tmap-grid">' +
+      types.map(ty => '<label class="tchip"><span>' + esc(ty) + '</span>' +
+        '<input type="text" inputmode="decimal" data-t="map" data-i="' + i + '" data-ty="' + esc(ty) + '" value="' + (l.map && l.map[ty] != null ? l.map[ty] : '') + '" placeholder="0"><em>%</em></label>').join('') +
+    '</div></div>' +
+    '<button class="btn sm danger" data-action="del-line" data-i="' + i + '">Remove this line</button></div>';
+  return '<div class="modal-ov" data-action="modal-bg"><div class="modal wide"><h3>Targets</h3>' +
+    '<p class="sub">A combined job such as Asili + LGS carries one value covering both products. Give it 50% on each line and it is split; give it 100% on each and it counts fully to both, which double counts. Saved on this computer.</p>' +
+    '<div class="grid g2">' +
+      '<label class="fld"><span>Financial year starts in</span><select data-t="fyStart">' +
+        MON.map((m, i) => '<option value="' + (i + 1) + '"' + ((i + 1) === +T.fyStart ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label>' +
+      '<label class="fld"><span>Quote turnaround target (days)</span><input type="text" inputmode="decimal" class="r" data-t="tatTarget" value="' + (T.tatTarget == null ? '' : T.tatTarget) + '"></label>' +
+    '</div><hr>' + T.lines.map(row).join('') +
+    '<button class="btn" data-action="add-line">+ Add a product line</button>' +
+    '<div class="modal-foot"><button class="btn" data-action="reset-targets">Restore defaults</button>' +
+    '<button class="btn primary" data-action="modal-close">Done</button></div></div></div>';
+}
+const settingsCur = () => 'KSh';
+
+/* =====================================================================
+   Publish a snapshot so the dashboard can be read on a phone.
+
+   The Excel file stays the source of truth. From a computer you press
+   Publish; that stores a read-only copy of the figures. On a phone the
+   dashboard loads that copy, so you can look at the numbers without
+   the Teams file.
+   ===================================================================== */
+const CKEY = 'dash_cloud_v1';
+let C = { enabled:false, url:'xschfdgrlbgcouqaepsp', key:'sb_publishable_4aeaSsBVJU8f_F_0H0GpGg_2-CQU-bC' };
+const cloud = { busy:false, err:'', list:null, from:null };
+
+function loadCloudCfg(){ try{ const s = JSON.parse(localStorage.getItem(CKEY) || 'null'); if(s) C = Object.assign(C, s); }catch(e){} }
+function saveCloudCfg(){ try{ localStorage.setItem(CKEY, JSON.stringify(C)); }catch(e){} }
+const cloudOn = () => !!(C.enabled && C.url && C.key);
+function cloudBase(){
+  let u = String(C.url || '').trim().replace(/\/+$/, '');
+  if(u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
+  if(u && !/\./.test(u.replace(/^https?:\/\//i, ''))) u = 'https://' + u.replace(/^https?:\/\//i, '') + '.supabase.co';
+  return u;
+}
+async function cReq(path, opts){
+  opts = opts || {};
+  const k = String(C.key || '').trim();
+  const res = await fetch(cloudBase() + '/rest/v1/' + path, {
+    method: opts.method || 'GET',
+    headers: Object.assign({ apikey:k, Authorization:'Bearer ' + k, 'Content-Type':'application/json' }, opts.headers || {}),
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  if(!res.ok){
+    let msg = res.status + ' ' + res.statusText;
+    try{ const j = await res.json(); if(j && (j.message || j.hint)) msg = j.message || j.hint; }catch(e){}
+    if(res.status === 401 || res.status === 403) msg = 'Supabase refused the request (' + res.status + '). Check the key and the table policy.';
+    if(res.status === 404) msg = 'Table not found — run the setup SQL in Supabase first.';
+    throw new Error(msg);
+  }
+  if(res.status === 204) return null;
+  const t = await res.text();
+  return t ? JSON.parse(t) : null;
+}
+function cFail(e){
+  const m = (e && e.message) ? e.message : String(e);
+  cloud.err = m;
+  toast(/Failed to fetch|NetworkError|Load failed/i.test(m) ? 'No connection to Supabase — check the internet' : m);
+}
+
+/* ---------- shape the snapshot: only what the screens need ---------- */
+const DKEYS = ['received','quoted','wonDate','lastFup','nextFup'];
+function packJobs(jobs){
+  return jobs.map(j => {
+    const o = { r:j.row, c:j.client, t:j.type, tr:j.typeRaw, p:j.rep, d:j.designer,
+      v:j.value, s:j.status, sr:j.statusRaw, m:j.temp, f:j.ref };
+    DKEYS.forEach(k => { if(j[k]) o[k[0] + (k === 'quoted' ? 'q' : k === 'wonDate' ? 'w' : k === 'lastFup' ? 'l' : k === 'nextFup' ? 'n' : 'r')] = ymd(j[k]); });
+    return o;
+  });
+}
+function unpackJobs(rows){
+  return rows.map(o => {
+    const j = { row:o.r, client:o.c || '', type:o.t || '', typeRaw:o.tr || '', rep:o.p || '', designer:o.d || '',
+      value:num(o.v), status:o.s || '', statusRaw:o.sr || '', temp:o.m || '', ref:o.f || '',
+      received:asDate(o.rr), quoted:asDate(o.qq), wonDate:asDate(o.ww), lastFup:asDate(o.ll), nextFup:asDate(o.nn) };
+    j.outcome = outcomeOf(j.status || j.temp);
+    j.tat = (j.received && j.quoted) ? daysBetween(j.received, j.quoted) : null;
+    j.age = j.received ? daysBetween(j.received, TODAY) : null;
+    j.month = ym(j.received);
+    return j;
+  });
+}
+async function publishSnapshot(alsoMonth){
+  if(!cloudOn()){ toast('Connect to Supabase in Settings first'); return false; }
+  if(!DATA.jobs.length){ toast('Load the job log first'); return false; }
+  cloud.busy = true;
+  try{
+    const body = {
+      label:'Design job log', file:DATA.file, rows:DATA.jobs.length,
+      published_at:new Date().toISOString(),
+      targets:T, map:DATA.map, sheet:DATA.sheet,
+      data:packJobs(DATA.jobs)
+    };
+    const rows = [Object.assign({ id:'current' }, body)];
+    if(alsoMonth) rows.push(Object.assign({ id:ym(TODAY) }, body));
+    await cReq('dash_snapshots', { method:'POST', headers:{ Prefer:'resolution=merge-duplicates' }, body:rows });
+    toast('Published ' + fmt(DATA.jobs.length) + ' jobs — open this file on your phone to read them');
+    cloud.list = null;
+    return true;
+  }catch(e){ cFail(e); return false; }
+  finally{ cloud.busy = false; }
+}
+async function listSnapshots(){
+  if(!cloudOn()) return null;
+  try{ cloud.list = await cReq('dash_snapshots?select=id,label,file,rows,published_at&order=published_at.desc&limit=30') || []; return cloud.list; }
+  catch(e){ cFail(e); cloud.list = []; return null; }
+}
+async function loadSnapshot(id, quiet){
+  if(!cloudOn()) return false;
+  cloud.busy = true;
+  try{
+    const rows = await cReq('dash_snapshots?select=*&id=eq.' + encodeURIComponent(id || 'current') + '&limit=1');
+    const s = rows && rows[0];
+    if(!s || !s.data){ if(!quiet) toast('Nothing has been published yet'); return false; }
+    DATA = { jobs:unpackJobs(s.data), file:s.file || 'published snapshot', loadedAt:new Date(),
+      sheet:s.sheet || '', map:s.map || {}, missing:[], issues:[] };
+    DATA.missing = FIELDS.filter(f => DATA.map[f[0]] === undefined).map(f => f[0]);
+    DATA.issues = findIssues(DATA.jobs, DATA.map);
+    if(s.targets && Array.isArray(s.targets.lines)) T = s.targets;
+    cloud.from = { id:s.id, at:new Date(s.published_at), file:s.file, rows:s.rows };
+    if(!quiet) toast('Loaded the snapshot published ' + cloud.from.at.toLocaleString('en-GB'));
+    return true;
+  }catch(e){ if(!quiet) cFail(e); return false; }
+  finally{ cloud.busy = false; }
+}
+async function cloudTest(){
+  if(!cloudBase() || !String(C.key || '').trim()){ toast('Enter the project reference and the key first'); return; }
+  try{ await cReq('dash_snapshots?select=id&limit=1'); C.enabled = true; saveCloudCfg(); toast('Connected to Supabase'); }
+  catch(e){ cFail(e); }
+  render();
+}
+const CLOUD_SQL = `-- Run once in Supabase → SQL Editor
+
+create table if not exists dash_snapshots (
+  id           text primary key,
+  label        text,
+  file         text,
+  sheet        text,
+  rows         integer,
+  map          jsonb,
+  targets      jsonb,
+  data         jsonb,
+  published_at timestamptz default now()
+);
+
+alter table dash_snapshots enable row level security;
+
+drop policy if exists dash_snapshots_all on dash_snapshots;
+create policy dash_snapshots_all on dash_snapshots for all to anon using (true) with check (true);`;
+
+/* ---------- the Settings / publish screen ---------- */
+function cloudModal(){
+  const from = cloud.from;
+  const age = from ? Math.round((Date.now() - from.at.getTime()) / 3600000) : null;
+  return '<div class="modal-ov" data-action="modal-bg"><div class="modal"><h3>Read it on your phone</h3>' +
+    '<p class="sub">The Excel file stays the master. Publishing stores a read-only copy of the figures so you can open this same dashboard on a phone, without the Teams file.</p>' +
+    (cloudOn() ? '' : '<div class="alert warn" style="margin-bottom:12px">Not connected yet. Run the setup SQL once, then press Connect.</div>') +
+    '<div class="grid g2">' +
+      '<label class="fld"><span>Supabase project reference</span><input type="text" data-c="url" value="' + esc(C.url) + '" placeholder="abcdefgh"></label>' +
+      '<label class="fld"><span>Publishable key</span><input type="text" data-c="key" value="' + esc(C.key) + '" placeholder="sb_publishable_…"></label>' +
+    '</div>' +
+    (cloud.err ? '<div class="alert" style="margin-top:12px">' + esc(cloud.err) + '</div>' : '') +
+    '<div class="row-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+      '<button class="btn solid" data-action="cloud-test">Connect and test</button>' +
+      '<button class="btn" data-action="cloud-sql">Show the setup SQL</button></div>' +
+    (ui.showSql ? '<label class="fld" style="margin-top:10px"><span>Paste into Supabase → SQL Editor, then Run</span><textarea rows="12" readonly onclick="this.select()" style="width:100%;border:1px solid var(--line-2);border-radius:6px;padding:8px;font-family:ui-monospace,monospace;font-size:12px">' + esc(CLOUD_SQL) + '</textarea></label>' : '') +
+    (cloudOn() ? '<hr><h3 style="font-size:15px;margin:0 0 4px">Publish</h3>' +
+      '<p class="sub">' + (DATA.jobs.length ? 'Ready to publish ' + fmt(DATA.jobs.length) + ' jobs from ' + esc(DATA.file) + '.' : 'Load the job log first.') + '</p>' +
+      '<label class="fld chk" style="flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:500">' +
+        '<input type="checkbox" data-c="keepMonth"' + (ui.keepMonth ? ' checked' : '') + '><span>Also keep a copy labelled ' + ymLabel(ym(TODAY)) + ' for the record</span></label>' +
+      '<div class="row-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+        '<button class="btn primary" data-action="cloud-publish"' + (DATA.jobs.length ? '' : ' disabled') + '>Publish now</button>' +
+        '<button class="btn" data-action="cloud-load">Load the published copy</button>' +
+        '<button class="btn" data-action="cloud-list">See what is published</button></div>' +
+      (from ? '<p class="hint">Currently showing the copy published ' + from.at.toLocaleString('en-GB') + (age != null ? ' (' + (age < 1 ? 'under an hour' : age + ' hours') + ' ago)' : '') + '.</p>' : '') +
+      (cloud.list ? '<div class="tablewrap" style="margin-top:10px"><table class="t"><thead><tr><th>Copy</th><th class="r">Jobs</th><th>Published</th><th></th></tr></thead><tbody>' +
+        (cloud.list.length ? cloud.list.map(s => '<tr><td>' + esc(s.id === 'current' ? 'Latest' : ymLabel(s.id)) + '</td><td class="r">' + fmt(s.rows || 0) + '</td>' +
+          '<td>' + new Date(s.published_at).toLocaleString('en-GB') + '</td>' +
+          '<td class="r"><button class="btn sm" data-action="cloud-load" data-id="' + esc(s.id) + '">Open</button></td></tr>').join('')
+          : '<tr><td colspan="4" class="empty">Nothing published yet.</td></tr>') + '</tbody></table></div>' : '')
+      : '') +
+    '<p class="hint">Anyone with this file and key can read the published figures, so keep the file inside the company.</p>' +
+    '<div class="modal-foot"><button class="btn primary" data-action="modal-close">Done</button></div></div></div>';
+}
+/* a banner so a stale snapshot is never mistaken for today's numbers */
+function snapshotBanner(){
+  if(!cloud.from) return '';
+  const hrs = Math.round((Date.now() - cloud.from.at.getTime()) / 3600000);
+  const stale = hrs >= 48;
+  return '<div class="alert' + (stale ? '' : ' warn') + '" style="margin:0 0 14px">' +
+    '<b>Published copy</b> — these figures were published ' + cloud.from.at.toLocaleString('en-GB') +
+    (hrs >= 1 ? ' (' + (hrs < 48 ? hrs + ' hours' : Math.round(hrs / 24) + ' days') + ' ago)' : '') +
+    ', from ' + esc(cloud.from.file || 'the job log') + '. Anything the team has entered since is not included.' +
+    '<button class="btn sm" data-action="open">Open the live file instead</button></div>';
+}
+
+/* =====================================================================
+   The full report: brief first page, then a page per subject so the
+   meeting can be run off paper without opening the dashboard.
+   ===================================================================== */
+function rTable(head, rows, note){
+  return '<table><thead><tr>' + head.map((h, i) => '<th' + (i ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+    (rows.length ? rows.join('') : '<tr><td colspan="' + head.length + '">Nothing recorded.</td></tr>') + '</tbody></table>' +
+    (note ? '<p class="note">' + note + '</p>' : '');
+}
+const rc = (v, bold) => '<td class="r">' + (bold ? '<b>' + v + '</b>' : v) + '</td>';
+function pageHead(R, sub){
+  return '<div class="rhead"><div><h1>Design office — ' + esc(R.label) + '</h1><div class="sub">' + sub + '</div></div>' +
+    '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '<br>Source: ' + esc(DATA.file || 'job log') + '</div></div>';
+}
+
+/* ---------- page 2: turnaround ---------- */
+function pgTurnaround(R){
+  const jobs = R.m, t = R.tat, tp = R.tatP;
+  const withTat = jobs.filter(j => j.tat !== null && j.tat >= 0);
+  const bands = [['Same day', j => j.tat === 0], ['1 day', j => j.tat === 1], ['2 days', j => j.tat === 2],
+                 ['3 to 5 days', j => j.tat >= 3 && j.tat <= 5], ['6 to 10 days', j => j.tat >= 6 && j.tat <= 10],
+                 ['Over 10 days', j => j.tat > 10]];
+  const target = T.tatTarget;
+  const hit = target != null ? withTat.filter(j => j.tat <= target).length : null;
+  const slow = withTat.filter(j => j.tat > (target == null ? 7 : Math.max(target, 5))).sort((a, b) => b.tat - a.tat).slice(0, 14);
+  const byDes = groupBy(jobs, 'designer').filter(g => g.tatN >= 1).sort((a, b) => a.tat - b.tat);
+  const byType = groupBy(jobs, 'type').filter(g => g.tatN >= 1);
+  return '<section class="rpage">' + pageHead(R, 'Quotation turnaround in detail') +
+    '<h2>Summary</h2><p>Turnaround is counted in calendar days from the date drawings are received to the date the quotation goes back. ' +
+      t.n + ' of the ' + R.conv.total + ' requests received in ' + esc(R.label) + ' have been quoted' +
+      (R.conv.total - t.n > 0 ? '; ' + (R.conv.total - t.n) + ' are not yet quoted and are excluded' : '') + '.</p>' +
+    rTable(['Measure', esc(R.label), esc(R.prevLabel)], [
+      '<tr><td>Quotations issued</td>' + rc(fmt(t.n), 1) + rc(fmt(tp.n)) + '</tr>',
+      '<tr><td>Median days</td>' + rc(fmt(t.median, 1), 1) + rc(tp.n ? fmt(tp.median, 1) : '—') + '</tr>',
+      '<tr><td>Average days</td>' + rc(fmt(t.mean, 1)) + rc(tp.n ? fmt(tp.mean, 1) : '—') + '</tr>',
+      '<tr><td>Slowest tenth (days)</td>' + rc(fmt(t.p90, 0)) + rc(tp.n ? fmt(tp.p90, 0) : '—') + '</tr>',
+      '<tr><td>Within 2 days</td>' + rc(fmt(t.within2, 1) + '%') + rc(tp.n ? fmt(tp.within2, 1) + '%' : '—') + '</tr>',
+      '<tr><td>Beyond a week</td>' + rc(fmt(t.over7, 1) + '%') + rc(tp.n ? fmt(tp.over7, 1) + '%' : '—') + '</tr>'
+    ], target != null ? ('Against the ' + target + '-day target, ' + fmt(pct(hit, withTat.length), 1) + '% were met (' + hit + ' of ' + withTat.length + ').') : '') +
+    '<h2>Spread of turnaround</h2>' +
+    rTable(['Band', 'Quotations', 'Share'], bands.map(bd => {
+      const n = withTat.filter(bd[1]).length;
+      return '<tr><td>' + bd[0] + '</td>' + rc(fmt(n)) + rc(fmt(pct(n, withTat.length), 1) + '%') + '</tr>';
+    })) +
+    '<h2>By designer</h2>' +
+    rTable(['Designer', 'Quoted', 'Median days', 'Average', 'Slowest'], byDes.map(g => {
+      const mx = Math.max.apply(null, g.jobs.filter(j => j.tat !== null && j.tat >= 0).map(j => j.tat).concat([0]));
+      return '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.tatN)) + rc(fmt(g.tat, 1), 1) + rc(fmt(g.tatMean, 1)) + rc(fmt(mx, 0)) + '</tr>';
+    }), 'Ordered fastest first. Designers with very few quotations in the month will swing about; read the median, not the average.') +
+    '<h2>By product</h2>' +
+    rTable(['Product', 'Requests', 'Quoted', 'Median days'], byType.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.tatN)) + rc(fmt(g.tat, 1)) + '</tr>')) +
+    (slow.length ? '<h2>The slowest quotations</h2>' +
+      rTable(['Client', 'Product', 'Designer', 'Received', 'Quoted', 'Days'], slow.map(j =>
+        '<tr><td>' + esc(j.client) + '</td>' + rc(esc(j.type)) + rc(esc(j.designer)) + rc(dmy(j.received)) + rc(dmy(j.quoted)) + rc(fmt(j.tat, 0), 1) + '</tr>'),
+        'These are what move the average. Worth a reason against each before the next review.') : '') +
+    '</section>';
+}
+
+/* ---------- page 3: conversion ---------- */
+function pgConversion(R){
+  const jobs = R.m, c = R.conv, cp = R.convP;
+  const reps = groupBy(jobs, 'rep').sort((a, b) => b.n - a.n);
+  const des = groupBy(jobs, 'designer').sort((a, b) => b.n - a.n);
+  const types = groupBy(jobs, 'type');
+  const losses = {};
+  jobs.filter(j => j.outcome === 'lost').forEach(j => { const k = j.status || 'Not stated'; losses[k] = (losses[k] || 0) + 1; });
+  const lossRows = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
+  const months = byMonth(DATA.jobs).slice(-12);
+  return '<section class="rpage">' + pageHead(R, 'Conversion in detail') +
+    '<h2>Summary</h2><p>Win rate counts only the requests the client has actually decided on. Requests still sitting with the client are excluded, so a quiet month does not flatter the rate. ' +
+      'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', ' + c.decided + ' have been decided, ' + c.won + ' were won and ' + c.open + ' are still open.</p>' +
+    rTable(['Measure', esc(R.label), esc(R.prevLabel)], [
+      '<tr><td>Requests received</td>' + rc(fmt(c.total), 1) + rc(fmt(cp.total)) + '</tr>',
+      '<tr><td>Decided</td>' + rc(fmt(c.decided)) + rc(fmt(cp.decided)) + '</tr>',
+      '<tr><td>Won</td>' + rc(fmt(c.won), 1) + rc(fmt(cp.won)) + '</tr>',
+      '<tr><td>Win rate on decided</td>' + rc(fmt(c.rateDecided, 1) + '%', 1) + rc(cp.decided ? fmt(cp.rateDecided, 1) + '%' : '—') + '</tr>',
+      '<tr><td>Value quoted</td>' + rc(fmt(c.allValue)) + rc(fmt(cp.allValue)) + '</tr>',
+      '<tr><td>Value won</td>' + rc(fmt(c.wonValue), 1) + rc(fmt(cp.wonValue)) + '</tr>',
+      '<tr><td>Still open (value)</td>' + rc(fmt(c.openValue)) + rc(fmt(cp.openValue)) + '</tr>'
+    ]) +
+    '<h2>By sales rep</h2>' +
+    rTable(['Sales rep', 'Requests', 'Decided', 'Won', 'Win rate', 'Value won'], reps.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%', 1) + rc(fmt(g.wonValue)) + '</tr>')) +
+    '<h2>By designer</h2>' +
+    rTable(['Designer', 'Requests', 'Decided', 'Won', 'Win rate'], des.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%') + '</tr>')) +
+    '<h2>By product</h2>' +
+    rTable(['Product', 'Requests', 'Decided', 'Won', 'Win rate', 'Value won'], types.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%') + rc(fmt(g.wonValue)) + '</tr>')) +
+    '<h2>Why work was lost</h2>' +
+    rTable(['Reason', 'Jobs', 'Share of losses'], lossRows.map(k =>
+      '<tr><td>' + esc(k) + '</td>' + rc(fmt(losses[k])) + rc(fmt(pct(losses[k], c.lost), 1) + '%') + '</tr>'),
+      'Reasons come from the status column. Anything sitting as unresponsive is a follow-up failure rather than a commercial loss.') +
+    '<h2>Twelve-month trend</h2>' +
+    rTable(['Month', 'Received', 'Decided', 'Won', 'Win rate', 'Median TAT'], months.map(m =>
+      '<tr><td>' + m.label + '</td>' + rc(fmt(m.n)) + rc(fmt(m.decided)) + rc(fmt(m.won)) + rc(fmt(m.rate, 1) + '%') + rc(fmt(m.tat, 1)) + '</tr>'),
+      'Recent months carry fewer decisions and will move as jobs close. Read the older months for trend.') +
+    '</section>';
+}
+
+/* ---------- page 4: targets and pipeline ---------- */
+function pgTargets(R){
+  const y = fyOf(R.w.from) != null ? fyOf(R.w.from) : fyOf(TODAY);
+  const figs = T.lines.map(l => lineFigures(l, y));
+  const tot = { target:figs.reduce((a, f) => a + f.target, 0), won:figs.reduce((a, f) => a + f.won, 0),
+    open:figs.reduce((a, f) => a + f.open, 0) };
+  const el = figs.length ? figs[0].elapsedPct : 0;
+  const months = (() => { const Rg = fyRange(y), out = [];
+    for(let d = new Date(Rg.from); d <= Rg.to; d.setMonth(d.getMonth() + 1)) out.push(ym(new Date(d)));
+    return out; })();
+  return '<section class="rpage">' + pageHead(R, 'Annual targets and pipeline — ' + fyLabel(y)) +
+    '<h2>Against target</h2>' +
+    rTable(['Product line', 'Annual target', 'Won to date', '% of target', 'Pace says', 'Variance', 'Open pipeline'], figs.map(f =>
+      '<tr><td>' + esc(f.line.name) + '</td>' + rc(fmt(f.target)) + rc(fmt(f.won), 1) + rc(fmt(f.pctTarget, 1) + '%', 1) +
+      rc(fmt(f.expected)) + rc((f.variance < 0 ? '' : '+') + fmt(f.variance)) + rc(fmt(f.open)) + '</tr>').concat([
+      '<tr><td><b>Total</b></td>' + rc(fmt(tot.target), 1) + rc(fmt(tot.won), 1) + rc(fmt(pct(tot.won, tot.target), 1) + '%', 1) +
+      rc(fmt(tot.target * el / 100)) + rc(fmt(tot.won - tot.target * el / 100)) + rc(fmt(tot.open), 1) + '</tr>']),
+      fyLabel(y) + ' is ' + fmt(el, 0) + '% elapsed. Pace spreads the annual target evenly across the year; it is a straight-line guide, not a seasonal forecast. ' +
+      'A combined Asili and LGS job is split between the two lines in the proportions set in the dashboard, so nothing is counted twice.') +
+    '<h2>Won value by month</h2>' +
+    rTable(['Month'].concat(T.lines.map(l => esc(l.name))).concat(['Total']), months.map(k => {
+      const vals = figs.map(f => f.byMonth[k] || 0);
+      const s = vals.reduce((a, b) => a + b, 0);
+      return '<tr><td>' + ymLabel(k) + '</td>' + vals.map(v => rc(v ? fmt(v) : '—')).join('') + rc(s ? fmt(s) : '—', 1) + '</tr>';
+    })) +
+    '<h2>What the open pipeline could add</h2>' +
+    rTable(['Product line', 'Open value', 'If all converted', 'Still short of target'], figs.map(f =>
+      '<tr><td>' + esc(f.line.name) + '</td>' + rc(fmt(f.open)) + rc(fmt(f.coverage, 0) + '% of target') +
+      rc(fmt(Math.max(0, f.target - f.won - f.open))) + '</tr>'),
+      'Open value is every undecided request weighted to the line. Treating it as certain would be optimistic — apply the win rate above for a realistic figure.') +
+    '</section>';
+}
+
+/* ---------- page 5: follow-ups ---------- */
+function pgFollowUps(R){
+  const f = R.fup;
+  const byRep = groupBy(f.open, 'rep').sort((a, b) => b.value - a.value);
+  const oldest = f.open.slice().sort((a, b) => (b.age || 0) - (a.age || 0)).slice(0, 20);
+  const overdue = f.overdue.slice().sort((a, b) => (a.nextFup || 0) - (b.nextFup || 0)).slice(0, 20);
+  return '<section class="rpage">' + pageHead(R, 'Open pipeline and follow-ups') +
+    '<h2>Where it stands</h2><p>Across every month, <b>' + f.open.length + '</b> requests are still awaiting a client decision, carrying <b>KSh ' +
+      fmt(f.open.reduce((a, j) => a + j.value, 0)) + '</b>. <b>' + f.overdue.length + '</b> are past the follow-up date recorded against them and <b>' +
+      f.noDate.length + '</b> carry no follow-up date at all.</p>' +
+    rTable(['Age since received', 'Requests', 'Share'], f.order.filter(k => f.ages[k]).map(k =>
+      '<tr><td>' + k + '</td>' + rc(fmt(f.ages[k])) + rc(fmt(pct(f.ages[k], f.open.length), 1) + '%') + '</tr>'),
+      'Anything past 60 days is unlikely to close without a fresh approach, and much of it is probably decided but never closed off in the log.') +
+    '<h2>By sales rep</h2>' +
+    rTable(['Sales rep', 'Open requests', 'Value held', 'Overdue'], byRep.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.value)) +
+      rc(fmt(g.jobs.filter(j => j.nextFup && j.nextFup < TODAY).length)) + '</tr>')) +
+    (overdue.length ? '<h2>Overdue follow-ups</h2>' +
+      rTable(['Client', 'Product', 'Sales rep', 'Value', 'Was due'], overdue.map(j =>
+        '<tr><td>' + esc(j.client) + '</td>' + rc(esc(j.type)) + rc(esc(j.rep)) + rc(j.value ? fmt(j.value) : '—') + rc(dmy(j.nextFup)) + '</tr>')) : '') +
+    '<h2>Oldest open requests</h2>' +
+    rTable(['Client', 'Product', 'Sales rep', 'Value', 'Age'], oldest.map(j =>
+      '<tr><td>' + esc(j.client) + '</td>' + rc(esc(j.type)) + rc(esc(j.rep)) + rc(j.value ? fmt(j.value) : '—') + rc((j.age == null ? '—' : j.age + ' d')) + '</tr>')) +
+    '</section>';
+}
+
+/* ---------- page 6: basis and data quality ---------- */
+function pgMethod(R){
+  const iss = DATA.issues;
+  return '<section class="rpage last"><h2>How these figures are put together</h2>' +
+    '<table><tbody>' +
+    '<tr><td><b>Source</b></td><td>' + esc(DATA.file || 'job log') + (DATA.sheet ? ', sheet "' + esc(DATA.sheet) + '"' : '') +
+      ', ' + fmt(DATA.jobs.length) + ' rows' + (DATA.loadedAt ? ', read ' + DATA.loadedAt.toLocaleString('en-GB') : '') + '.</td></tr>' +
+    '<tr><td><b>Turnaround</b></td><td>Calendar days from the date drawings are received to the date the quotation is sent. Requests not yet quoted are excluded rather than counted as zero.</td></tr>' +
+    '<tr><td><b>Win rate</b></td><td>Won requests divided by requests the client has decided. Undecided requests are excluded from both sides.</td></tr>' +
+    '<tr><td><b>Month</b></td><td>A request belongs to the month it was received. Won value is counted on the date won where the log records one, otherwise on the date received.</td></tr>' +
+    '<tr><td><b>Combined jobs</b></td><td>An Asili and LGS job is split between the two product lines in the proportions set in the dashboard, so the value is never counted twice.</td></tr>' +
+    '<tr><td><b>Product names</b></td><td>Spelling variants are merged, so "ASILI", "Asili" and "Asili, LGS and gutters" are grouped sensibly rather than as separate products.</td></tr>' +
+    '</tbody></table>' +
+    '<h2>Data quality in the source log</h2>' +
+    '<p>These do not stop the report, but they make the figures weaker than they look and are worth closing out.</p>' +
+    (iss.length ? '<table><thead><tr><th>Issue</th><th class="r">Rows</th></tr></thead><tbody>' +
+      iss.map(i => '<tr><td>' + esc(i.msg) + '</td><td class="r">' + (i.count || '—') + '</td></tr>').join('') + '</tbody></table>'
+      : '<p>No issues found in the source log.</p>') +
+    '<p class="note">Prepared by ' + esc('Dennis Kihiu') + ' from the design office job log. Figures recalculate whenever the log is reloaded, so a later print may differ from this one.</p>' +
+    '</section>';
+}
+function fullReportHTML(key){
+  const R = reportData(key);
+  return reportHTML(key) + pgTurnaround(R) + pgConversion(R) + pgTargets(R) + pgFollowUps(R) +
+    (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '') + pgMethod(R);
+}
+
+/* =====================================================================
+   Sales report import — splitting company sales into work that came
+   through the design office and walk-in / showroom sales.
+
+   Attribution is by customer name, so it needs a sales listing with one
+   row per invoice. A summary by item group cannot be split this way.
+   ===================================================================== */
+let SALES = { rows:[], file:'', loadedAt:null, map:{}, sheet:'' };
+
+const SALES_FIELDS = [
+  ['customer', ['customer','customer name','client','account name','debtor','account','name']],
+  ['date',     ['date','invoice date','document date','tx date','transaction date']],
+  ['amount',   ['amount','net amount','value','total','invoice total','sales value','excl amount','amount excl']],
+  ['doc',      ['document','document no','invoice no','invoice number','doc no','reference','order no']],
+  ['group',    ['item group','group','product group','category','stock group']]
+];
+function mapSalesColumns(header){
+  const h = header.map(norm);
+  const map = {};
+  SALES_FIELDS.forEach(([key, names]) => {
+    let idx = -1;
+    for(const n of names){ idx = h.indexOf(norm(n)); if(idx >= 0) break; }
+    if(idx < 0) for(const n of names){ idx = h.findIndex(x => x && x.indexOf(norm(n)) === 0); if(idx >= 0) break; }
+    if(idx >= 0) map[key] = idx;
+  });
+  return map;
+}
+function pickSalesSheet(sheets){
+  let best = null;
+  sheets.forEach(sh => {
+    for(let r = 0; r < Math.min(12, sh.rows.length); r++){
+      const map = mapSalesColumns(sh.rows[r] || []);
+      if(map.customer === undefined || map.amount === undefined) continue;
+      const score = Object.keys(map).length;
+      if(!best || score > best.score) best = { sheet:sh, headerRow:r, map, score };
+    }
+  });
+  return best;
+}
+/* company suffixes and punctuation get in the way of matching */
+const CO_WORDS = /\b(ltd|limited|co|company|enterprises?|holdings?|investments?|group|plc|llc|inc|sacco|properties|developers?|contractors?|builders?|constructions?|and|the)\b/g;
+function nameKey(s){
+  return String(s == null ? '' : s).toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ').replace(CO_WORDS, ' ').replace(/\s+/g, ' ').trim();
+}
+const nameTokens = s => nameKey(s).split(' ').filter(t => t.length >= 3);
+
+function buildDesignIndex(){
+  const exact = {}, tokens = {};
+  DATA.jobs.forEach(j => {
+    if(!j.client) return;
+    const k = nameKey(j.client);
+    if(!k) return;
+    if(!exact[k]) exact[k] = [];
+    exact[k].push(j);
+    nameTokens(j.client).forEach(t => { (tokens[t] = tokens[t] || []).push(j); });
+  });
+  return { exact, tokens };
+}
+/* exact -> the same customer; strong -> two or more distinctive words shared */
+function matchDesign(name, idx){
+  const k = nameKey(name);
+  if(!k) return { how:'none', jobs:[] };
+  if(idx.exact[k]) return { how:'exact', jobs:idx.exact[k] };
+  const toks = nameTokens(name);
+  if(!toks.length) return { how:'none', jobs:[] };
+  const score = {};
+  toks.forEach(t => (idx.tokens[t] || []).forEach(j => { score[j.row] = (score[j.row] || 0) + 1; }));
+  let bestN = 0, best = [];
+  Object.keys(score).forEach(r => {
+    if(score[r] > bestN){ bestN = score[r]; best = []; }
+    if(score[r] === bestN) best.push(r);
+  });
+  if(bestN >= 2){
+    /* Two shared words is not enough on its own: "Nakuru Builders Centre" and
+       "Nakuru Heights Builders" share two and are different customers. Require
+       the names to overlap substantially before calling it the same client. */
+    const jobs = DATA.jobs.filter(j => best.indexOf(String(j.row)) >= 0);
+    const a = toks.length;
+    const ok = jobs.filter(j => {
+      const b = nameTokens(j.client).length;
+      return bestN / Math.max(a, b, 1) >= 0.6;
+    });
+    if(ok.length) return { how:'likely', jobs:ok };
+  }
+  return { how:'none', jobs:[] };
+}
+function buildSales(picked){
+  const { sheet, headerRow, map } = picked;
+  const g = (row, k) => map[k] === undefined ? null : row[map[k]];
+  const out = [];
+  for(let r = headerRow + 1; r < sheet.rows.length; r++){
+    const row = sheet.rows[r] || [];
+    if(!row.length) continue;
+    const customer = String(g(row, 'customer') || '').trim();
+    const amount = num(g(row, 'amount'));
+    if(!customer || !amount) continue;
+    if(/^total/i.test(customer)) continue;
+    out.push({ row:r + 1, customer, amount, date:asDate(g(row, 'date')),
+      doc:String(g(row, 'doc') || '').trim(), group:String(g(row, 'group') || '').trim() });
+  }
+  return out;
+}
+function attributeSales(rows){
+  const idx = buildDesignIndex();
+  rows.forEach(s => {
+    const m = matchDesign(s.customer, idx);
+    s.how = m.how;
+    s.job = m.jobs.length ? m.jobs[0] : null;
+    s.origin = (m.how === 'exact' || m.how === 'likely') ? 'design' : 'direct';
+  });
+  return rows;
+}
+function salesSummary(from, to){
+  const inR = s => (!from || (s.date && s.date >= from)) && (!to || (s.date && s.date <= to));
+  const rows = SALES.rows.filter(inR);
+  const sum = a => r2(a.reduce((x, s) => x + s.amount, 0));
+  const design = rows.filter(s => s.origin === 'design');
+  const direct = rows.filter(s => s.origin === 'direct');
+  const likely = rows.filter(s => s.how === 'likely');
+  const noDate = SALES.rows.filter(s => !s.date).length;
+  return { n:rows.length, total:sum(rows), design:sum(design), direct:sum(direct),
+    designN:design.length, directN:direct.length, likely:sum(likely), likelyN:likely.length,
+    pctDesign:pct(sum(design), sum(rows)), noDate };
+}
+async function loadSalesBuffer(buf, name){
+  const sheets = await readWorkbook(buf);
+  const picked = pickSalesSheet(sheets);
+  if(!picked) throw new Error('No sheet had a customer column and an amount column. A sales listing with one row per invoice is needed — a summary by item group cannot be split by origin.');
+  const rows = buildSales(picked);
+  if(!rows.length) throw new Error('That sheet was found but no invoice rows could be read from it.');
+  SALES = { rows:attributeSales(rows), file:name, loadedAt:new Date(), map:picked.map, sheet:picked.sheet.name };
+}
+function openSales(){
+  if(!DATA.jobs.length){ toast('Load the design job log first — the split works by matching customer names against it'); return; }
+  pickBinary('.xlsx,.xlsm,.csv', async (buf, name) => {
+    $('#loading').hidden = false;
+    try{ await loadSalesBuffer(buf, name); toast('Read ' + fmt(SALES.rows.length) + ' sales rows'); }
+    catch(e){ toast((e && e.message) ? e.message : 'That file could not be read'); }
+    $('#loading').hidden = true; render();
+  });
+}
+
+/* ---------- the Sales screen ---------- */
+function tabSales(){
+  if(!SALES.rows.length){
+    return '<div class="wrap"><section class="card welcome">' +
+      '<h2>Split company sales into design and showroom</h2>' +
+      '<p class="sub">Import the Sage sales listing and every invoice is matched by customer name against the design job log. Whatever matches came through your team; the rest is walk-in and showroom trade.</p>' +
+      '<button class="btn primary big" data-action="open-sales">Open a sales listing</button>' +
+      '<div class="alert warn" style="margin-top:18px;text-align:left"><b>It needs one row per invoice.</b> From Sage, export a sales or invoice listing to Excel with at least a <b>customer name</b> and an <b>amount</b> column — a date and document number help. ' +
+      'A summary by item group (such as the Inventory Transactions Summary) has no customer names in it, so it cannot be split this way.</div>' +
+      '</section></div>';
+  }
+  const w = ui.salesMonth ? monthWindow(ui.salesMonth) : { from:null, to:null };
+  const S = salesSummary(w.from, w.to);
+  const months = (() => { const m = {}; SALES.rows.forEach(s => { if(s.date) m[ym(s.date)] = 1; }); return Object.keys(m).sort().reverse(); })();
+  const byOrigin = {};
+  SALES.rows.filter(s => (!w.from || (s.date && s.date >= w.from)) && (!w.to || (s.date && s.date <= w.to)))
+    .forEach(s => { const k = s.group || '(no group)'; byOrigin[k] = byOrigin[k] || { d:0, x:0 };
+      byOrigin[k][s.origin === 'design' ? 'd' : 'x'] += s.amount; });
+  const groups = Object.keys(byOrigin).sort((a, b) => (byOrigin[b].d + byOrigin[b].x) - (byOrigin[a].d + byOrigin[a].x));
+  const review = SALES.rows.slice().sort((a, b) => b.amount - a.amount).slice(0, 60);
+  return '<div class="wrap">' +
+    '<div class="toolbar"><span class="lbl">Period</span>' +
+      '<select data-f="salesMonth"><option value="">All dates in the file</option>' +
+      months.map(m => '<option value="' + m + '"' + (m === ui.salesMonth ? ' selected' : '') + '>' + ymLabel(m) + '</option>').join('') + '</select>' +
+      '<span style="flex:1"></span><span class="lbl">' + esc(SALES.file) + '</span>' +
+      '<button class="btn" data-action="open-sales">Load another</button></div>' +
+    '<div class="stats">' +
+      stat('Total sales', KSH(S.total), fmt(S.n) + ' invoices') +
+      stat('Through the design team', KSH(S.design), fmt(S.pctDesign, 1) + '% · ' + S.designN + ' invoices', 'good') +
+      stat('Direct / showroom', KSH(S.direct), fmt(100 - S.pctDesign, 1) + '% · ' + S.directN + ' invoices') +
+      stat('Matched on a likeness', KSH(S.likely), S.likelyN + ' invoices to check', S.likelyN ? 'warn' : '') +
+    '</div>' +
+    (S.noDate ? '<div class="alert warn">' + S.noDate + ' rows have no date, so they sit outside every period filter.</div>' : '') +
+    '<section class="card"><h2>By item group</h2>' +
+      '<div class="tablewrap"><table class="t"><thead><tr><th>Group</th><th class="r">Design team</th><th class="r">Direct</th><th class="r">Total</th><th class="r">Design share</th></tr></thead><tbody>' +
+      (groups.length ? groups.map(g => { const v = byOrigin[g], t = v.d + v.x;
+        return '<tr><td>' + esc(g) + '</td><td class="r">' + fmt(v.d) + '</td><td class="r">' + fmt(v.x) + '</td><td class="r"><b>' + fmt(t) + '</b></td>' +
+          '<td class="r">' + fmt(pct(v.d, t), 1) + '%</td></tr>'; }).join('')
+        : '<tr><td colspan="5" class="empty">The file has no item group column.</td></tr>') + '</tbody></table></div></section>' +
+    '<section class="card"><h2>Check the matching</h2><p class="sub">The largest 60 invoices. "Likeness" means the customer name was close but not identical — worth a glance before quoting the split.</p>' +
+      '<div class="tablewrap"><table class="t"><thead><tr><th>Customer</th><th>Date</th><th class="r">Amount</th><th>Origin</th><th>Matched design job</th></tr></thead><tbody>' +
+      review.map(s => '<tr><td>' + esc(s.customer) + '</td><td>' + (s.date ? dmy(s.date) : '—') + '</td><td class="r">' + fmt(s.amount) + '</td>' +
+        '<td><span class="pill ' + (s.how === 'exact' ? 'green' : s.how === 'likely' ? 'amber' : 'grey') + '">' +
+        (s.how === 'exact' ? 'Design' : s.how === 'likely' ? 'Design (likeness)' : 'Direct') + '</span></td>' +
+        '<td>' + (s.job ? esc(s.job.client) + ' <span class="pill grey">row ' + s.job.row + '</span>' : '—') + '</td></tr>').join('') +
+      '</tbody></table></div></section></div>';
+}
+/* a report page, only when a sales file has been loaded */
+function salesPageHTML(R){
+  if(!SALES.rows.length) return '';
+  const S = salesSummary(R.w.from, R.w.to);
+  if(!S.n) return '';
+  const byOrigin = {};
+  SALES.rows.filter(s => s.date && s.date >= R.w.from && s.date <= R.w.to)
+    .forEach(s => { const k = s.group || '(no group)'; byOrigin[k] = byOrigin[k] || { d:0, x:0 };
+      byOrigin[k][s.origin === 'design' ? 'd' : 'x'] += s.amount; });
+  const groups = Object.keys(byOrigin).sort((a, b) => (byOrigin[b].d + byOrigin[b].x) - (byOrigin[a].d + byOrigin[a].x));
+  return '<section class="rpage">' + pageHead(R, 'Company sales — design office against direct trade') +
+    '<h2>Split of the month</h2>' +
+    rTable(['Origin', 'Invoices', 'Value', 'Share'], [
+      '<tr><td>Through the design office</td>' + rc(fmt(S.designN)) + rc(fmt(S.design), 1) + rc(fmt(S.pctDesign, 1) + '%', 1) + '</tr>',
+      '<tr><td>Direct and showroom</td>' + rc(fmt(S.directN)) + rc(fmt(S.direct)) + rc(fmt(100 - S.pctDesign, 1) + '%') + '</tr>',
+      '<tr><td><b>Total</b></td>' + rc(fmt(S.n), 1) + rc(fmt(S.total), 1) + rc('100%') + '</tr>'
+    ], 'Each invoice is attributed by matching its customer against the design job log. ' +
+       (S.likelyN ? S.likelyN + ' invoices worth ' + fmt(S.likely) + ' matched on a likeness rather than an identical name and could move either way. ' : '') +
+       'A client who first came through design but later bought directly will still count as design.') +
+    (groups.length ? '<h2>By item group</h2>' +
+      rTable(['Group', 'Design office', 'Direct', 'Total', 'Design share'], groups.map(g => {
+        const v = byOrigin[g], t = v.d + v.x;
+        return '<tr><td>' + esc(g) + '</td>' + rc(fmt(v.d)) + rc(fmt(v.x)) + rc(fmt(t), 1) + rc(fmt(pct(v.d, t), 1) + '%') + '</tr>';
+      })) : '') +
+    '<p class="note">Source: ' + esc(SALES.file) + (SALES.sheet ? ', sheet "' + esc(SALES.sheet) + '"' : '') + ', ' + fmt(SALES.rows.length) + ' invoice rows.</p>' +
+    '</section>';
+}
+
+/* =====================================================================
+   Monthly report + loading + events
+   ===================================================================== */
+function monthOptions(){
+  const m = {}; DATA.jobs.forEach(j => { if(j.month) m[j.month] = 1; });
+  return Object.keys(m).sort().reverse();
+}
+function tabReport(){
+  const opts = monthOptions();
+  if(!opts.length) return '<div class="wrap"><section class="card"><div class="empty">Load a job log to build a report.</div></section></div>';
+  if(!ui.reportMonth || opts.indexOf(ui.reportMonth) < 0) ui.reportMonth = opts[0];
+  const pages = ui.reportDetail ? fullReportHTML(ui.reportMonth) : reportHTML(ui.reportMonth);
+  const n = (pages.match(/class="rpage/g) || []).length;
+  return '<div class="wrap"><div class="toolbar"><span class="lbl">Month</span>' +
+    '<select data-f="reportMonth">' + opts.map(o => '<option value="' + o + '"' + (o === ui.reportMonth ? ' selected' : '') + '>' + ymLabel(o) + '</option>').join('') + '</select>' +
+    '<button class="chip ' + (ui.reportDetail ? '' : 'on') + '" data-action="report-detail">Summary only</button>' +
+    '<button class="chip ' + (ui.reportDetail ? 'on' : '') + '" data-action="report-detail">Full report</button>' +
+    '<span class="lbl">' + n + ' page' + (n === 1 ? '' : 's') + '</span>' +
+    '<span style="flex:1"></span><button class="btn" data-action="copy-report">Copy as text</button>' +
+    '<button class="btn primary" data-action="print">Print / Save as PDF</button></div>' +
+    '<div class="paper">' + pages + '</div></div>';
+}
+function monthWindow(key){
+  const [y, m] = key.split('-').map(Number);
+  return { from:new Date(y, m - 1, 1), to:new Date(y, m, 0) };
+}
+function reportData(key){
+  const w = monthWindow(key);
+  const all = DATA.jobs;
+  const inM = all.filter(j => j.received && j.received >= w.from && j.received <= w.to);
+  const prevKey = (() => { const [y, m] = key.split('-').map(Number); const d = new Date(y, m - 2, 1); return ym(d); })();
+  const pw = monthWindow(prevKey);
+  const inP = all.filter(j => j.received && j.received >= pw.from && j.received <= pw.to);
+  const quotedInM = all.filter(j => j.quoted && j.quoted >= w.from && j.quoted <= w.to);
+  const wonInM = all.filter(j => j.outcome === 'won' && j.received && j.received >= w.from && j.received <= w.to);
+  return { key, label:ymLabel(key), prevLabel:ymLabel(prevKey), w,
+    m:inM, p:inP, quotedInM, wonInM,
+    tat:tatStats(inM), tatP:tatStats(inP), conv:convStats(inM), convP:convStats(inP),
+    fup:followUps(all.filter(j => j.outcome === 'open')) };
+}
+function delta(cur, prev, invert, dp, suffix){
+  if(prev == null || !isFinite(prev)) return '';
+  const d = r1(cur - prev);
+  if(!d) return '<span class="flat">level</span>';
+  const good = invert ? d < 0 : d > 0;
+  return '<span class="' + (good ? 'up' : 'down') + '">' + (d > 0 ? '+' : '') + fmt(d, dp == null ? 1 : dp) + (suffix || '') + '</span>';
+}
+function reportHTML(key){
+  const R = reportData(key);
+  const c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
+  const topTypes = groupBy(R.m, 'type').slice(0, 6);
+  const reps = groupBy(R.m, 'rep').filter(g => g.n >= 2).slice(0, 8);
+  const losses = {};
+  R.m.filter(j => j.outcome === 'lost').forEach(j => { const k = j.status || 'Not stated'; losses[k] = (losses[k] || 0) + 1; });
+  const lossList = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
+  const tbl = (head, rows) => '<table><thead><tr>' + head.map((h, i) => '<th' + (i ? ' class="r"' : '') + '>' + h + '</th>').join('') + '</tr></thead><tbody>' +
+    (rows.length ? rows.join('') : '<tr><td colspan="' + head.length + '">Nothing recorded.</td></tr>') + '</tbody></table>';
+  const oldest = R.fup.open.slice().sort((a, b) => (b.age || 0) - (a.age || 0)).slice(0, 10);
+  return '<section class="rpage">' +
+    '<div class="rhead"><div><h1>Design office — ' + esc(R.label) + '</h1>' +
+      '<div class="sub">Turnaround, conversion and open pipeline</div></div>' +
+      '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '<br>Source: ' + esc(DATA.file || 'job log') + '</div></div>' +
+    '<div class="kv">' +
+      '<div><div class="k">REQUESTS RECEIVED</div><div class="v">' + fmt(c.total) + '</div><div class="k">' + delta(c.total, cp.total, false, 0) + ' vs ' + esc(R.prevLabel) + '</div></div>' +
+      '<div><div class="k">MEDIAN QUOTE TAT</div><div class="v">' + fmt(t.median, 1) + ' d</div><div class="k">' + delta(t.median, tp.median, true, 1, ' d') + ' vs ' + esc(R.prevLabel) + '</div></div>' +
+      '<div><div class="k">WIN RATE</div><div class="v">' + fmt(c.rateDecided, 1) + '%</div><div class="k">' + delta(c.rateDecided, cp.rateDecided, false, 1, ' pts') + ' vs ' + esc(R.prevLabel) + '</div></div>' +
+      '<div><div class="k">WON VALUE</div><div class="v">' + fmt(c.wonValue, 0) + '</div><div class="k">KSh, from ' + c.won + ' jobs</div></div>' +
+    '</div>' +
+    '<h2>Turnaround</h2>' +
+    '<p>' + t.n + ' of the ' + c.total + ' requests received in ' + esc(R.label) + ' have been quoted. Half went out within <b>' + fmt(t.median, 1) + ' days</b> ' +
+      'and ' + fmt(t.within2, 0) + '% within two days. The slowest tenth took more than ' + fmt(t.p90, 0) + ' days, and ' + fmt(t.over7, 1) + '% took longer than a week.' +
+      (tp.n ? ' The median in ' + esc(R.prevLabel) + ' was ' + fmt(tp.median, 1) + ' days.' : '') + '</p>' +
+    tbl(['Product', 'Requests', 'Quoted', 'Median days'], topTypes.map(g =>
+      '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.n) + '</td><td class="r">' + fmt(g.tatN) + '</td><td class="r">' + (g.tatN ? fmt(g.tat, 1) : '—') + '</td></tr>')) +
+    '<h2>Conversion</h2>' +
+    '<p>Of the ' + c.total + ' requests, <b>' + c.decided + '</b> have been decided and <b>' + c.won + '</b> were won — a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>' +
+      (cp.decided ? ' against ' + fmt(cp.rateDecided, 1) + '% in ' + esc(R.prevLabel) : '') + '. ' +
+      'Won work is worth <b>KSh ' + fmt(c.wonValue) + '</b> of the KSh ' + fmt(c.allValue) + ' quoted. ' +
+      c.open + ' requests are still with the client, carrying KSh ' + fmt(c.openValue) + '.</p>' +
+    tbl(['Sales rep', 'Requests', 'Decided', 'Won', 'Win rate'], reps.map(g =>
+      '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.n) + '</td><td class="r">' + fmt(g.decided) + '</td><td class="r">' + fmt(g.won) + '</td><td class="r">' + fmt(g.rate, 1) + '%</td></tr>')) +
+    (lossList.length ? '<p class="note">Reasons given for losses this month: ' + lossList.map(k => esc(k) + ' (' + losses[k] + ')').join(', ') + '.</p>' : '') +
+    '<h2>Open pipeline and follow-ups</h2>' +
+    '<p>Across all months, <b>' + R.fup.open.length + '</b> requests are still awaiting a client decision, worth <b>KSh ' + fmt(R.fup.open.reduce((a, j) => a + j.value, 0)) + '</b>. ' +
+      '<b>' + R.fup.overdue.length + '</b> are past their follow-up date and <b>' + R.fup.noDate.length + '</b> have no follow-up date set at all.</p>' +
+    tbl(['Oldest open requests', 'Product', 'Sales rep', 'Value', 'Age'], oldest.map(j =>
+      '<tr><td>' + esc(j.client || '(no name)') + '</td><td class="r">' + esc(j.type) + '</td><td class="r">' + esc(j.rep) + '</td><td class="r">' + (j.value ? fmt(j.value) : '—') + '</td><td class="r">' + (j.age == null ? '—' : j.age + ' d') + '</td></tr>')) +
+    '<p class="note">Turnaround is measured from the date drawings are received to the date the quotation is sent. Win rate counts only requests the client has decided on; undecided requests are excluded so the rate is not flattered by a slow month.</p>' +
+    '</section>';
+}
+function reportText(key){
+  const R = reportData(key), c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
+  const L = [];
+  L.push('DESIGN OFFICE — ' + R.label.toUpperCase());
+  L.push('');
+  L.push('Requests received: ' + fmt(c.total) + (cp.total ? ' (' + R.prevLabel + ': ' + fmt(cp.total) + ')' : ''));
+  L.push('Median quote turnaround: ' + fmt(t.median, 1) + ' days' + (tp.n ? ' (' + R.prevLabel + ': ' + fmt(tp.median, 1) + ')' : ''));
+  L.push('Quoted within 2 days: ' + fmt(t.within2, 0) + '%   |   over a week: ' + fmt(t.over7, 1) + '%');
+  L.push('Win rate (decided): ' + fmt(c.rateDecided, 1) + '%' + (cp.decided ? ' (' + R.prevLabel + ': ' + fmt(cp.rateDecided, 1) + '%)' : ''));
+  L.push('Won: ' + c.won + ' jobs, KSh ' + fmt(c.wonValue));
+  L.push('Still open: ' + c.open + ' jobs, KSh ' + fmt(c.openValue));
+  L.push('');
+  L.push('OPEN PIPELINE (all months): ' + R.fup.open.length + ' jobs, KSh ' + fmt(R.fup.open.reduce((a, j) => a + j.value, 0)));
+  L.push('Overdue follow-ups: ' + R.fup.overdue.length + '   |   no follow-up date: ' + R.fup.noDate.length);
+  return L.join('\n');
+}
+
+/* ---------- loading ---------- */
+function pickBinary(accept, cb){
+  const inp = document.createElement('input');
+  inp.type = 'file'; if(accept) inp.accept = accept; inp.style.display = 'none';
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0];
+    if(f){ const rd = new FileReader(); rd.onload = () => cb(rd.result, f.name); rd.readAsArrayBuffer(f); }
+    inp.remove();
+  });
+  document.body.appendChild(inp); inp.click();
+}
+async function loadBuffer(buf, name){
+  const sheets = await readWorkbook(buf);
+  const picked = pickSheet(sheets);
+  if(!picked) throw new Error('No sheet looked like a job log. The dashboard needs columns for the date received, the client and the status.');
+  const jobs = buildJobs(picked);
+  if(!jobs.length) throw new Error('The sheet "' + picked.sheet.name + '" was found but has no data rows under its headings.');
+  DATA = { jobs, file:name, loadedAt:new Date(), sheet:picked.sheet.name, map:picked.map,
+    missing:FIELDS.filter(f => picked.map[f[0]] === undefined).map(f => f[0]), issues:[] };
+  DATA.issues = findIssues(jobs, picked.map);
+  try{ localStorage.setItem('dash_last', JSON.stringify({ name, at:Date.now(), rows:jobs.length })); }catch(e){}
+}
+function openFile(){
+  if(!canReadXlsx()){ toast('This browser cannot open .xlsx files — try Chrome, Edge or a recent Safari'); return; }
+  pickBinary('.xlsx,.xlsm', async (buf, name) => {
+    $('#loading').hidden = false;
+    try{
+      await loadBuffer(buf, name);
+      toast('Loaded ' + fmt(DATA.jobs.length) + ' jobs from ' + name);
+      if(!DATA.jobs.length) ui.tab = 'data';
+      render();
+    }catch(e){
+      render();
+      toast((e && e.message) ? e.message : 'That file could not be read');
+    }
+    $('#loading').hidden = true;
+  });
+}
+function csvOf(jobs){
+  const q = v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const L = ['Client,Product,Sales rep,Designer,Value,Received,Age (days),Last follow-up,Next due,Lead,Status'];
+  jobs.forEach(j => L.push([j.client, j.type, j.rep, j.designer, j.value, dmy(j.received), j.age == null ? '' : j.age,
+    dmy(j.lastFup), dmy(j.nextFup), j.temp, j.status].map(q).join(',')));
+  return L.join('\r\n');
+}
+
+/* ---------- render ---------- */
+function render(){
+  $('#tabs').innerHTML = TABS.map(t => '<button class="tab ' + (ui.tab === t[0] ? 'active' : '') + '" data-action="tab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('');
+  const has = DATA.jobs.length > 0;
+  $('#fileName').textContent = DATA.file || 'No file loaded';
+  if(!has && ui.tab !== 'data'){
+    $('#panel').innerHTML = '<div class="wrap"><section class="card welcome">' +
+      '<h2>Point this at the team\'s job log</h2>' +
+      '<p class="sub">Open the Excel file the team keeps in Teams. Nothing is uploaded anywhere — the file is read here in the browser and the numbers are worked out on this computer.</p>' +
+      '<button class="btn primary big" data-action="open">Open the job log</button>' +
+      (cloudOn() ? ' <button class="btn big" data-action="cloud-load">Load the published copy</button>' : '') +
+      '<p class="hint">It looks for a sheet with the date received, the client, the product, the sales rep and the status. Extra columns are ignored, so the old dashboard works too.</p>' +
+      '</section></div>';
+    return;
+  }
+  const fn = { overview:tabOverview, targets:tabTargets, tat:tabTat, conv:tabConv, fup:tabFup, sales:tabSales, report:tabReport, data:tabData }[ui.tab];
+  const body = fn();
+  $('#panel').innerHTML = cloud.from ? body.replace('<div class="wrap">', '<div class="wrap">' + snapshotBanner()) : body;
+  $('#modalRoot').innerHTML = ui.modal === 'targets' ? targetsModal() : (ui.modal === 'cloud' ? cloudModal() : '');
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  const a = el.dataset.action, d = el.dataset;
+  if(a === 'tab'){ ui.tab = d.tab; render(); window.scrollTo(0, 0); }
+  else if(a === 'edit-targets'){ ui.modal = 'targets'; render(); }
+  else if(a === 'cloud'){ ui.modal = 'cloud'; ui.showSql = false; cloud.err = ''; render(); }
+  else if(a === 'cloud-test'){ cloudTest(); }
+  else if(a === 'cloud-sql'){ ui.showSql = !ui.showSql; render(); }
+  else if(a === 'cloud-publish'){ publishSnapshot(ui.keepMonth).then(render); }
+  else if(a === 'cloud-load'){ loadSnapshot(d.id || 'current').then(ok => { if(ok){ ui.modal = null; } render(); }); }
+  else if(a === 'cloud-list'){ listSnapshots().then(render); }
+  else if(a === 'modal-close'){ ui.modal = null; render(); }
+  else if(a === 'modal-bg'){ if(e.target === el){ ui.modal = null; render(); } }
+  else if(a === 'add-line'){ T.lines.push({ id:'l' + Date.now(), name:'New line', annual:0, map:{} }); saveTargets(); render(); }
+  else if(a === 'del-line'){ T.lines.splice(+d.i, 1); saveTargets(); render(); }
+  else if(a === 'reset-targets'){ if(confirm('Put the targets back to the starting values?')){ T = JSON.parse(JSON.stringify(DEFAULT_TARGETS)); saveTargets(); render(); } }
+  else if(a === 'open') openFile();
+  else if(a === 'open-sales') openSales();
+  else if(a === 'report-detail'){ ui.reportDetail = !ui.reportDetail; render(); }
+  else if(a === 'reload') openFile();
+  else if(a === 'sortfup'){ ui.sortFup = d.k; render(); }
+  else if(a === 'print') window.print();
+  else if(a === 'export-fup') downloadBlob(new Blob([csvOf(followUps(filtered()).open)], { type:'text/csv' }), 'follow_ups_' + ymd(TODAY) + '.csv');
+  else if(a === 'copy-report'){
+    const txt = reportText(ui.reportMonth);
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => toast('Report copied — paste it into an email'), () => toast('Could not copy'));
+    else toast('Copying is not available in this browser');
+  }
+  else if(a === 'quick'){
+    const q = d.q, now = TODAY;
+    if(q === 'all'){ F.from = null; F.to = null; }
+    else if(q === 'mtd'){ F.from = new Date(now.getFullYear(), now.getMonth(), 1); F.to = null; }
+    else if(q === 'last'){ F.from = new Date(now.getFullYear(), now.getMonth() - 1, 1); F.to = new Date(now.getFullYear(), now.getMonth(), 0); }
+    else if(q === '90'){ F.from = new Date(now.getTime() - 90 * DAY); F.to = null; }
+    else if(q === 'ytd'){ F.from = new Date(now.getFullYear(), 0, 1); F.to = null; }
+    render();
+  }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if(t.dataset && t.dataset.c){
+    if(t.dataset.c === 'keepMonth') return;
+    C[t.dataset.c] = t.value; saveCloudCfg(); return;
+  }
+  const k = t.dataset && t.dataset.t;
+  if(!k) return;
+  if(k === 'name'){ T.lines[+t.dataset.i].name = t.value; saveTargets(); return; }
+  if(k === 'annual'){ T.lines[+t.dataset.i].annual = num(t.value); saveTargets(); return; }
+  if(k === 'map'){
+    const L = T.lines[+t.dataset.i]; L.map = L.map || {};
+    const v = String(t.value).trim();
+    if(v === '' || num(v) === 0) delete L.map[t.dataset.ty]; else L.map[t.dataset.ty] = num(v);
+    saveTargets(); return;
+  }
+  if(k === 'tatTarget'){ T.tatTarget = String(t.value).trim() === '' ? null : num(t.value); saveTargets(); return; }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if(t.dataset && t.dataset.c === 'keepMonth'){ ui.keepMonth = t.checked; return; }
+  if(t.dataset && t.dataset.t === 'fyStart'){ T.fyStart = +t.value; saveTargets(); render(); return; }
+  const f = t.dataset && t.dataset.f;
+  if(!f) return;
+  if(f === 'fy'){ ui.fy = +t.value; render(); return; }
+  if(f === 'salesMonth'){ ui.salesMonth = t.value; render(); return; }
+  if(f === 'from' || f === 'to') F[f] = t.value ? asDate(t.value) : null;
+  else if(f === 'reportMonth') ui.reportMonth = t.value;
+  else F[f] = t.value;
+  render();
+});
+window.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag'); });
+window.addEventListener('dragleave', e => { if(e.relatedTarget === null) document.body.classList.remove('drag'); });
+window.addEventListener('drop', async e => {
+  e.preventDefault(); document.body.classList.remove('drag');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  if(!/\.xlsx?$|\.xlsm$/i.test(f.name)){ toast('Drop an .xlsx file'); return; }
+  $('#loading').hidden = false;
+  try{
+    await loadBuffer(await f.arrayBuffer(), f.name);
+    toast('Loaded ' + fmt(DATA.jobs.length) + ' jobs from ' + f.name);
+    render();
+  }catch(err){ toast((err && err.message) ? err.message : 'That file could not be read'); }
+  $('#loading').hidden = true;
+});
+/* ---------- startup ---------- */
+loadTargets();
+loadCloudCfg();
+render();
+/* on a phone there is no Teams file, so fall back to the published copy */
+if(cloudOn() && !DATA.jobs.length){
+  loadSnapshot('current', true).then(ok => { if(ok) render(); });
+}
+
+</script></body></html>
