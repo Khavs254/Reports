@@ -628,7 +628,8 @@ function followUps(jobs){
    ===================================================================== */
 const TABS = [['overview','Overview'],['targets','Targets'],['tat','Turnaround'],['conv','Conversion'],['fup','Follow-ups'],['sales','Sales split'],['report','Monthly report'],['data','Data quality']];
 let F = { from:null, to:null, type:'', rep:'', designer:'' };
-const ui = { tab:'overview', reportMonth:'', sortFup:'age', print:false, fy:null, modal:null, showSql:false, keepMonth:false, salesMonth:'', reportDetail:true };
+const ui = { tab:'overview', reportMonth:'', sortFup:'age', print:false, fy:null, modal:null, showSql:false, keepMonth:false, salesMonth:'', reportDetail:true,
+  reportMode:'month', reportFrom:null, reportTo:null };
 
 const stat = (k, v, s, cls) => '<div class="stat ' + (cls || '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
 const KSH = n => 'KSh ' + fmt(n);
@@ -1358,10 +1359,11 @@ function pgMethod(R){
     '<p class="note">Prepared by ' + esc('Dennis Kihiu') + ' from the design office job log. Figures recalculate whenever the log is reloaded, so a later print may differ from this one.</p>' +
     '</section>';
 }
-function fullReportHTML(key){
-  const R = reportData(key);
-  return reportHTML(key) + pgTurnaround(R) + pgConversion(R) + pgTargets(R) + pgFollowUps(R) +
-    (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '') + pgMethod(R);
+function fullReportHTML(){
+  const R = reportData();
+  const pages = [reportHTML(), pgTurnaround(R), pgConversion(R), pgTargets(R), pgFollowUps(R),
+    (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '')].filter(Boolean);
+  return pages.join('').replace(/class="rpage"(?![\s\S]*class="rpage")/, 'class="rpage last"');
 }
 
 /* =====================================================================
@@ -1719,12 +1721,20 @@ function monthOptions(){
 }
 function tabReport(){
   const opts = monthOptions();
-  if(!opts.length) return '<div class="wrap"><section class="card"><div class="empty">Load a job log to build a report.</div></section></div>';
+  if(!opts.length) return '<div class="wrap"><section class="card"><div class="empty">Load a job log or a sales report to build a report.</div></section></div>';
   if(!ui.reportMonth || opts.indexOf(ui.reportMonth) < 0) ui.reportMonth = opts[0];
-  const pages = ui.reportDetail ? fullReportHTML(ui.reportMonth) : reportHTML(ui.reportMonth);
+  const byRange = ui.reportMode === 'range';
+  const w = reportWindow();
+  const pages = ui.reportDetail ? fullReportHTML() : reportHTML();
   const n = (pages.match(/class="rpage/g) || []).length;
-  return '<div class="wrap"><div class="toolbar"><span class="lbl">Month</span>' +
-    '<select data-f="reportMonth">' + opts.map(o => '<option value="' + o + '"' + (o === ui.reportMonth ? ' selected' : '') + '>' + ymLabel(o) + '</option>').join('') + '</select>' +
+  return '<div class="wrap"><div class="toolbar"><span class="lbl">Period</span>' +
+    '<button class="chip ' + (byRange ? '' : 'on') + '" data-action="report-mode" data-m="month">One month</button>' +
+    '<button class="chip ' + (byRange ? 'on' : '') + '" data-action="report-mode" data-m="range">A span</button>' +
+    (byRange
+      ? '<label class="fld"><span>From</span><input type="date" data-f="reportFrom" value="' + (ui.reportFrom ? ymd(ui.reportFrom) : ymd(w.from)) + '"></label>' +
+        '<label class="fld"><span>To</span><input type="date" data-f="reportTo" value="' + (ui.reportTo ? ymd(ui.reportTo) : ymd(w.to)) + '"></label>' +
+        '<span class="lbl">' + esc(windowLabel(w)) + '</span>'
+      : '<select data-f="reportMonth">' + opts.map(o => '<option value="' + o + '"' + (o === ui.reportMonth ? ' selected' : '') + '>' + ymLabel(o) + '</option>').join('') + '</select>') +
     '<button class="chip ' + (ui.reportDetail ? '' : 'on') + '" data-action="report-detail">Summary only</button>' +
     '<button class="chip ' + (ui.reportDetail ? 'on' : '') + '" data-action="report-detail">Full report</button>' +
     '<span class="lbl">' + n + ' page' + (n === 1 ? '' : 's') + '</span>' +
@@ -1736,16 +1746,44 @@ function monthWindow(key){
   const [y, m] = key.split('-').map(Number);
   return { from:new Date(y, m - 1, 1), to:new Date(y, m, 0) };
 }
-function reportData(key){
+/* The period is whatever is on screen: one month, a run of months, or any
+   two dates. The comparison is always the same length, immediately before. */
+function reportWindow(){
+  if(ui.reportMode === 'range' && (ui.reportFrom || ui.reportTo)){
+    const opts = monthOptions();
+    const lastM = opts.length ? monthWindow(opts[0]).to : TODAY;
+    const from = ui.reportFrom || (opts.length ? monthWindow(opts[opts.length - 1]).from : TODAY);
+    const to = ui.reportTo || lastM;
+    return { from, to, key:'' };
+  }
+  const key = ui.reportMonth;
   const w = monthWindow(key);
+  return { from:w.from, to:w.to, key };
+}
+function windowLabel(w){
+  if(w.key) return ymLabel(w.key);
+  const sameMonth = w.from.getFullYear() === w.to.getFullYear() && w.from.getMonth() === w.to.getMonth();
+  if(sameMonth) return ymLabel(ym(w.from));
+  return dmy(w.from) + ' to ' + dmy(w.to);
+}
+function prevWindow(w){
+  if(w.key){
+    const [y, m] = w.key.split('-').map(Number);
+    const p = ym(new Date(y, m - 2, 1));
+    const pw = monthWindow(p);
+    return { from:pw.from, to:pw.to, key:p };
+  }
+  const days = Math.max(1, Math.round((w.to - w.from) / DAY) + 1);
+  return { from:new Date(w.from.getTime() - days * DAY), to:new Date(w.from.getTime() - DAY), key:'' };
+}
+function reportData(){
+  const w = reportWindow(), pw = prevWindow(w);
   const all = DATA.jobs;
   const inM = all.filter(j => j.received && j.received >= w.from && j.received <= w.to);
-  const prevKey = (() => { const [y, m] = key.split('-').map(Number); const d = new Date(y, m - 2, 1); return ym(d); })();
-  const pw = monthWindow(prevKey);
   const inP = all.filter(j => j.received && j.received >= pw.from && j.received <= pw.to);
   const quotedInM = all.filter(j => j.quoted && j.quoted >= w.from && j.quoted <= w.to);
   const wonInM = all.filter(j => j.outcome === 'won' && j.received && j.received >= w.from && j.received <= w.to);
-  return { key, label:ymLabel(key), prevLabel:ymLabel(prevKey), w,
+  return { key:w.key, label:windowLabel(w), prevLabel:windowLabel(pw), w, pw,
     m:inM, p:inP, quotedInM, wonInM,
     tat:tatStats(inM), tatP:tatStats(inP), conv:convStats(inM), convP:convStats(inP),
     fup:followUps(all.filter(j => j.outcome === 'open')) };
@@ -1757,8 +1795,8 @@ function delta(cur, prev, invert, dp, suffix){
   const good = invert ? d < 0 : d > 0;
   return '<span class="' + (good ? 'up' : 'down') + '">' + (d > 0 ? '+' : '') + fmt(d, dp == null ? 1 : dp) + (suffix || '') + '</span>';
 }
-function reportHTML(key){
-  const R = reportData(key);
+function reportHTML(){
+  const R = reportData();
   const c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
   const topTypes = groupBy(R.m, 'type').slice(0, 6);
   const reps = groupBy(R.m, 'rep').filter(g => g.n >= 2).slice(0, 8);
@@ -1797,11 +1835,36 @@ function reportHTML(key){
       '<b>' + R.fup.overdue.length + '</b> are past their follow-up date and <b>' + R.fup.noDate.length + '</b> have no follow-up date set at all.</p>' +
     tbl(['Oldest open requests', 'Product', 'Sales rep', 'Value', 'Age'], oldest.map(j =>
       '<tr><td>' + esc(j.client || '(no name)') + '</td><td class="r">' + esc(j.type) + '</td><td class="r">' + esc(j.rep) + '</td><td class="r">' + (j.value ? fmt(j.value) : '—') + '</td><td class="r">' + (j.age == null ? '—' : j.age + ' d') + '</td></tr>')) +
-    '<p class="note">Turnaround is measured from the date drawings are received to the date the quotation is sent. Win rate counts only requests the client has decided on; undecided requests are excluded so the rate is not flattered by a slow month.</p>' +
+    salesSummaryBlock(R) +
+    '<p class="note">Turnaround is measured from the date drawings are received to the date the quotation is sent. Win rate counts only requests the client has decided on; undecided requests are excluded so the rate is not flattered by a slow period.</p>' +
     '</section>';
 }
-function reportText(key){
-  const R = reportData(key), c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
+/* Company sales on the summary page, whenever a sales report has been loaded */
+function salesSummaryBlock(R){
+  if(typeof SALES === 'undefined' || !SALES.rows || !SALES.rows.length) return '';
+  const S = salesSummary(R.w.from, R.w.to);
+  if(!S.n) return '';
+  const groups = salesByKey(S.rows, 'group').slice(0, 6);
+  const basis = (typeof SPLIT !== 'undefined' && SPLIT.mode === 'rep')
+    ? 'split by the sales rep on each invoice' : 'split by matching the customer to a design job';
+  return '<h2>Company sales</h2>' +
+    '<p>Invoiced sales in this period were <b>KSh ' + fmt(S.total) + '</b> across ' + fmt(S.n) + ' lines. ' +
+      'Of that, <b>KSh ' + fmt(S.design) + '</b> (' + fmt(S.pctDesign, 1) + '%) came through the design office and <b>KSh ' +
+      fmt(S.direct) + '</b> over the counter' +
+      (S.unknown ? ', with KSh ' + fmt(S.unknown) + ' not yet classified' : '') + '. Figures are ' + basis + '.</p>' +
+    '<table><thead><tr><th>Product group</th><th class="r">Design office</th><th class="r">Counter</th>' +
+      (S.unknown ? '<th class="r">Unclassified</th>' : '') + '<th class="r">Total</th><th class="r">Design share</th></tr></thead><tbody>' +
+    groups.map(g => '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.design) + '</td><td class="r">' + fmt(g.direct) + '</td>' +
+      (S.unknown ? '<td class="r">' + fmt(g.unknown) + '</td>' : '') +
+      '<td class="r"><b>' + fmt(g.total) + '</b></td><td class="r">' + fmt(pct(g.design, g.design + g.direct), 1) + '%</td></tr>').join('') +
+    '</tbody><tfoot><tr><td>All groups</td><td class="r">' + fmt(S.design) + '</td><td class="r">' + fmt(S.direct) + '</td>' +
+      (S.unknown ? '<td class="r">' + fmt(S.unknown) + '</td>' : '') +
+      '<td class="r">' + fmt(S.total) + '</td><td class="r">' + fmt(S.pctDesign, 1) + '%</td></tr></tfoot></table>' +
+    (SALES.skipped && Object.keys(SALES.skipped).filter(k => SALES.skipped[k]).length
+      ? '<p class="note">Withholding tax and stock-transfer entries in the source report are excluded, as they are not sales.</p>' : '');
+}
+function reportText(){
+  const R = reportData(), c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
   const L = [];
   L.push('DESIGN OFFICE — ' + R.label.toUpperCase());
   L.push('');
@@ -1812,6 +1875,16 @@ function reportText(key){
   L.push('Won: ' + c.won + ' jobs, KSh ' + fmt(c.wonValue));
   L.push('Still open: ' + c.open + ' jobs, KSh ' + fmt(c.openValue));
   L.push('');
+  if(typeof SALES !== 'undefined' && SALES.rows && SALES.rows.length){
+    const S = salesSummary(R.w.from, R.w.to);
+    if(S.n){
+      L.push('COMPANY SALES: KSh ' + fmt(S.total));
+      L.push('  through design: KSh ' + fmt(S.design) + ' (' + fmt(S.pctDesign, 1) + '%)');
+      L.push('  over the counter: KSh ' + fmt(S.direct));
+      if(S.unknown) L.push('  not classified: KSh ' + fmt(S.unknown));
+      L.push('');
+    }
+  }
   L.push('OPEN PIPELINE (all months): ' + R.fup.open.length + ' jobs, KSh ' + fmt(R.fup.open.reduce((a, j) => a + j.value, 0)));
   L.push('Overdue follow-ups: ' + R.fup.overdue.length + '   |   no follow-up date: ' + R.fup.noDate.length);
   return L.join('\n');
@@ -1926,12 +1999,17 @@ document.addEventListener('click', e => {
     }
   }
   else if(a === 'report-detail'){ ui.reportDetail = !ui.reportDetail; render(); }
+  else if(a === 'report-mode'){
+    ui.reportMode = d.m;
+    if(d.m === 'range' && !ui.reportFrom){ const w = monthWindow(ui.reportMonth); ui.reportFrom = w.from; ui.reportTo = w.to; }
+    render();
+  }
   else if(a === 'reload') openFile();
   else if(a === 'sortfup'){ ui.sortFup = d.k; render(); }
   else if(a === 'print') window.print();
   else if(a === 'export-fup') downloadBlob(new Blob([csvOf(followUps(filtered()).open)], { type:'text/csv' }), 'follow_ups_' + ymd(TODAY) + '.csv');
   else if(a === 'copy-report'){
-    const txt = reportText(ui.reportMonth);
+    const txt = reportText();
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => toast('Report copied — paste it into an email'), () => toast('Could not copy'));
     else toast('Copying is not available in this browser');
   }
@@ -1971,6 +2049,7 @@ document.addEventListener('change', e => {
   if(!f) return;
   if(f === 'fy'){ ui.fy = +t.value; render(); return; }
   if(f === 'salesMonth'){ ui.salesMonth = t.value; render(); return; }
+  if(f === 'reportFrom' || f === 'reportTo'){ ui[f] = t.value ? asDate(t.value) : null; render(); return; }
   if(f === 'from' || f === 'to') F[f] = t.value ? asDate(t.value) : null;
   else if(f === 'reportMonth') ui.reportMonth = t.value;
   else F[f] = t.value;
