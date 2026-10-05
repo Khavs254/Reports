@@ -401,6 +401,7 @@ function downloadBlob(blob, name){
 const FIELDS = [
   ['ref',      ['job ref','ref','reference','quote no','job request name']],
   ['received', ['date received','date when drawings are received','date drawings received','received']],
+  ['clientCode',['customer code','client code','account','account code','customer account','sage code']],
   ['client',   ['client / job name','client','job name','job request name','project']],
   ['type',     ['job type','job type (lgs, ecohouse, etc)','type','material/building solution','product']],
   ['rep',      ['sales rep','name of requestor','requestor','rep','sales person']],
@@ -501,7 +502,7 @@ function buildJobs(picked){
     const j = {
       row: r + 1,
       ref: String(g(row, 'ref') || '').trim(),
-      client, received, quoted,
+      client, clientCode:String(g(row, 'clientCode') || '').trim(), received, quoted,
       type: canonType(g(row, 'type')), typeRaw: String(g(row, 'type') || '').trim(),
       rep: titleName(g(row, 'rep')),
       designer: titleName(g(row, 'designer')),
@@ -1364,24 +1365,52 @@ function fullReportHTML(key){
 }
 
 /* =====================================================================
-   Sales report import — splitting company sales into work that came
-   through the design office and walk-in / showroom sales.
+   Sage sales report — one row per transaction.
 
-   Attribution is by customer name, so it needs a sales listing with one
-   row per invoice. A summary by item group cannot be split this way.
+   The report carries customer ACCOUNT CODES rather than names, which is
+   better: those are the same codes printed on the quotations, so a sale
+   can be tied to a design job exactly instead of by guessing spellings.
    ===================================================================== */
-let SALES = { rows:[], file:'', loadedAt:null, map:{}, sheet:'' };
+const SKEY = 'dash_sales_v1', MKEY = 'dash_custmap_v1', PKEY = 'dash_split_v1';
+/* How a sale is judged to have come through the design team. */
+let SPLIT = { mode:'rep', reps:{} };   /* reps: rep name -> 'design' | 'counter' */
+let SALES = { rows:[], files:[], loadedAt:null, skipped:{}, totalRow:null };
+let CMAP = {};
+
+function reviveSales(){
+  SALES.rows = SALES.rows.map(r => (r.acct !== undefined && r.date !== undefined) ? r
+    : ({ date:asDate(r.d), acct:r.a || '', group:r.g || '', amount:num(r.m), rep:r.p || '', item:r.i || '', tran:r.t || '', audit:r.n || '', cname:r.c || '' }));
+}
+function loadSalesStore(){
+  try{ const s = JSON.parse(localStorage.getItem(SKEY) || 'null'); if(s && Array.isArray(s.rows)) SALES = s; }catch(e){}
+  try{ const m = JSON.parse(localStorage.getItem(MKEY) || 'null'); if(m) CMAP = m; }catch(e){}
+  try{ const sp = JSON.parse(localStorage.getItem(PKEY) || 'null'); if(sp && sp.reps) SPLIT = sp; }catch(e){}
+  reviveSales();
+}
+function saveSales(){
+  try{
+    localStorage.setItem(SKEY, JSON.stringify({ files:SALES.files, loadedAt:SALES.loadedAt, skipped:SALES.skipped || {}, totalRow:SALES.totalRow,
+      rows:SALES.rows.map(r => ({ d:ymd(r.date), a:r.acct, g:r.group, m:r.amount, p:r.rep, i:r.item, t:r.tran, n:r.audit, c:r.cname })) }));
+  }catch(e){ toast('Could not save the sales history — browser storage is full'); }
+}
+function saveCmap(){ try{ localStorage.setItem(MKEY, JSON.stringify(CMAP)); }catch(e){} }
+function saveSplit(){ try{ localStorage.setItem(PKEY, JSON.stringify(SPLIT)); }catch(e){} }
+const repKey = r => String(r || '').trim().toLowerCase();
+const repRole = r => SPLIT.reps[repKey(r)] || '';
 
 const SALES_FIELDS = [
-  ['customer', ['customer','customer name','client','account name','debtor','account','name']],
-  ['date',     ['date','invoice date','document date','tx date','transaction date']],
-  ['amount',   ['amount','net amount','value','total','invoice total','sales value','excl amount','amount excl']],
-  ['doc',      ['document','document no','invoice no','invoice number','doc no','reference','order no']],
-  ['group',    ['item group','group','product group','category','stock group']]
+  ['item',   ['item code','code','stock code','item']],
+  ['date',   ['date','tx date','transaction date','document date','invoice date']],
+  ['tran',   ['tran','type','transaction type','tran type','doc type']],
+  ['acct',   ['account','customer code','account code','debtor','acc']],
+  ['cname',  ['account name','customer name','account description','debtor name','name']],
+  ['rep',    ['rep','sales rep','salesperson','agent']],
+  ['group',  ['group','item group','product group','stock group','category']],
+  ['amount', ['amount','net amount','value','sales value','total']],
+  ['audit',  ['audit no','audit number','audit','document no','invoice no','reference']]
 ];
 function mapSalesColumns(header){
-  const h = header.map(norm);
-  const map = {};
+  const h = header.map(norm), map = {};
   SALES_FIELDS.forEach(([key, names]) => {
     let idx = -1;
     for(const n of names){ idx = h.indexOf(norm(n)); if(idx >= 0) break; }
@@ -1395,189 +1424,286 @@ function pickSalesSheet(sheets){
   sheets.forEach(sh => {
     for(let r = 0; r < Math.min(12, sh.rows.length); r++){
       const map = mapSalesColumns(sh.rows[r] || []);
-      if(map.customer === undefined || map.amount === undefined) continue;
+      if(map.amount === undefined) continue;
+      if(map.acct === undefined && map.item === undefined) continue;
       const score = Object.keys(map).length;
       if(!best || score > best.score) best = { sheet:sh, headerRow:r, map, score };
     }
   });
   return best;
 }
-/* company suffixes and punctuation get in the way of matching */
-const CO_WORDS = /\b(ltd|limited|co|company|enterprises?|holdings?|investments?|group|plc|llc|inc|sacco|properties|developers?|contractors?|builders?|constructions?|and|the)\b/g;
-function nameKey(s){
-  return String(s == null ? '' : s).toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, ' ').replace(CO_WORDS, ' ').replace(/\s+/g, ' ').trim();
-}
-const nameTokens = s => nameKey(s).split(' ').filter(t => t.length >= 3);
-
-function buildDesignIndex(){
-  const exact = {}, tokens = {};
-  DATA.jobs.forEach(j => {
-    if(!j.client) return;
-    const k = nameKey(j.client);
-    if(!k) return;
-    if(!exact[k]) exact[k] = [];
-    exact[k].push(j);
-    nameTokens(j.client).forEach(t => { (tokens[t] = tokens[t] || []).push(j); });
-  });
-  return { exact, tokens };
-}
-/* exact -> the same customer; strong -> two or more distinctive words shared */
-function matchDesign(name, idx){
-  const k = nameKey(name);
-  if(!k) return { how:'none', jobs:[] };
-  if(idx.exact[k]) return { how:'exact', jobs:idx.exact[k] };
-  const toks = nameTokens(name);
-  if(!toks.length) return { how:'none', jobs:[] };
-  const score = {};
-  toks.forEach(t => (idx.tokens[t] || []).forEach(j => { score[j.row] = (score[j.row] || 0) + 1; }));
-  let bestN = 0, best = [];
-  Object.keys(score).forEach(r => {
-    if(score[r] > bestN){ bestN = score[r]; best = []; }
-    if(score[r] === bestN) best.push(r);
-  });
-  if(bestN >= 2){
-    /* Two shared words is not enough on its own: "Nakuru Builders Centre" and
-       "Nakuru Heights Builders" share two and are different customers. Require
-       the names to overlap substantially before calling it the same client. */
-    const jobs = DATA.jobs.filter(j => best.indexOf(String(j.row)) >= 0);
-    const a = toks.length;
-    const ok = jobs.filter(j => {
-      const b = nameTokens(j.client).length;
-      return bestN / Math.max(a, b, 1) >= 0.6;
-    });
-    if(ok.length) return { how:'likely', jobs:ok };
-  }
-  return { how:'none', jobs:[] };
-}
+/* Only invoiced sales count. Withholding tax and stock transfers sit in the
+   same report and would overstate the month. */
+const SALE_TRAN = /^(is|inv|invoice|cs|cash sale)$/i;
+const SKIP_TRAN = { WHT:'Withholding tax', MFDR:'Stock transfer', MFMF:'Stock transfer', CN:'Credit notes', JNL:'Journals' };
 function buildSales(picked){
   const { sheet, headerRow, map } = picked;
   const g = (row, k) => map[k] === undefined ? null : row[map[k]];
-  const out = [];
+  const rows = [], skipped = {};
+  let totalRow = null;
   for(let r = headerRow + 1; r < sheet.rows.length; r++){
     const row = sheet.rows[r] || [];
     if(!row.length) continue;
-    const customer = String(g(row, 'customer') || '').trim();
+    const item = String(g(row, 'item') || '').trim();
     const amount = num(g(row, 'amount'));
-    if(!customer || !amount) continue;
-    if(/^total/i.test(customer)) continue;
-    out.push({ row:r + 1, customer, amount, date:asDate(g(row, 'date')),
-      doc:String(g(row, 'doc') || '').trim(), group:String(g(row, 'group') || '').trim() });
+    if(/^total/i.test(item)){ totalRow = amount; continue; }
+    if(!amount && !item) continue;
+    const tran = String(g(row, 'tran') || '').trim();
+    if(map.tran !== undefined && tran && !SALE_TRAN.test(tran)){
+      const label = SKIP_TRAN[tran.toUpperCase()] || (tran + ' entries');
+      skipped[label] = r2((skipped[label] || 0) + amount);
+      continue;
+    }
+    rows.push({ date:asDate(g(row, 'date')), acct:String(g(row, 'acct') || '').trim(),
+      cname:String(g(row, 'cname') || '').trim(),
+      rep:String(g(row, 'rep') || '').trim(), group:String(g(row, 'group') || '').trim(),
+      amount, item, tran, audit:String(g(row, 'audit') || '').trim() });
   }
-  return out;
+  return { rows, skipped, totalRow };
+}
+const salesBase = r => [r.audit, r.item, ymd(r.date), r.amount].join('|');
+/* A report can legitimately carry two identical lines, so number repeats
+   rather than throwing them away; re-importing the same file still dedupes. */
+function withSeq(rows){
+  const seen = {};
+  return rows.map(r => { const b = salesBase(r); seen[b] = (seen[b] || 0) + 1; return Object.assign({ key:b + '#' + seen[b] }, r); });
+}
+function mergeSales(incoming, fileName, skipped, totalRow){
+  reviveSales();
+  const have = {};
+  const seenExisting = {};
+  SALES.rows.forEach(r => { const b = salesBase(r); seenExisting[b] = (seenExisting[b] || 0) + 1; have[b + '#' + seenExisting[b]] = 1; });
+  let added = 0, dupes = 0;
+  withSeq(incoming).forEach(r => { if(have[r.key]){ dupes++; return; } have[r.key] = 1; delete r.key; SALES.rows.push(r); added++; });
+  if(SALES.files.indexOf(fileName) < 0) SALES.files.push(fileName);
+  SALES.loadedAt = Date.now();
+  if(skipped){
+    SALES.skipped = SALES.skipped || {};
+    Object.keys(skipped).forEach(k => { SALES.skipped[k] = r2((SALES.skipped[k] || 0) + skipped[k]); });
+  }
+  if(totalRow != null) SALES.totalRow = r2((SALES.totalRow || 0) + totalRow);
+  saveSales();
+  return { added, dupes };
+}
+
+/* ---------- tying a sale to the design office ---------- */
+const CO_WORDS = /\b(ltd|limited|co|company|enterprises?|holdings?|investments?|group|plc|llc|inc|sacco|properties|developers?|contractors?|builders?|constructions?|and|the)\b/g;
+function nameKey(s){ return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(CO_WORDS, ' ').replace(/\s+/g, ' ').trim(); }
+const nameTokens = s => nameKey(s).split(' ').filter(t => t.length >= 3);
+function buildDesignIndex(){
+  const byCode = {}, exact = {}, tokens = {};
+  DATA.jobs.forEach(j => {
+    const c = String(j.clientCode || '').trim().toUpperCase();
+    if(c) (byCode[c] = byCode[c] || []).push(j);
+    const k = nameKey(j.client);
+    if(!k) return;
+    (exact[k] = exact[k] || []).push(j);
+    nameTokens(j.client).forEach(t => { (tokens[t] = tokens[t] || []).push(j); });
+  });
+  return { byCode, exact, tokens };
+}
+function matchSale(s, idx){
+  const code = String(s.acct || '').trim().toUpperCase();
+  if(code && idx.byCode[code]) return { how:'code', jobs:idx.byCode[code] };
+  const name = s.cname || CMAP[code];
+  if(name){
+    const k = nameKey(name);
+    if(idx.exact[k]) return { how:'name', jobs:idx.exact[k] };
+    const toks = nameTokens(name);
+    if(toks.length){
+      const score = {};
+      toks.forEach(t => (idx.tokens[t] || []).forEach(j => { score[j.row] = (score[j.row] || 0) + 1; }));
+      let bestN = 0, best = [];
+      Object.keys(score).forEach(r => { if(score[r] > bestN){ bestN = score[r]; best = []; } if(score[r] === bestN) best.push(r); });
+      if(bestN >= 2){
+        const jobs = DATA.jobs.filter(j => best.indexOf(String(j.row)) >= 0 && bestN / Math.max(toks.length, nameTokens(j.client).length, 1) >= 0.6);
+        if(jobs.length) return { how:'likely', jobs };
+      }
+    }
+  }
+  return { how:'none', jobs:[] };
 }
 function attributeSales(rows){
+  if(SPLIT.mode === 'rep'){
+    rows.forEach(s => {
+      const role = repRole(s.rep);
+      s.how = role ? 'rep' : 'none'; s.job = null;
+      s.origin = role === 'design' ? 'design' : (role === 'counter' ? 'direct' : 'unknown');
+    });
+    return rows;
+  }
   const idx = buildDesignIndex();
   rows.forEach(s => {
-    const m = matchDesign(s.customer, idx);
-    s.how = m.how;
-    s.job = m.jobs.length ? m.jobs[0] : null;
-    s.origin = (m.how === 'exact' || m.how === 'likely') ? 'design' : 'direct';
+    const m = matchSale(s, idx);
+    s.how = m.how; s.job = m.jobs.length ? m.jobs[0] : null;
+    s.origin = (m.how === 'none') ? 'direct' : 'design';
   });
   return rows;
 }
+function salesInRange(from, to){
+  reviveSales();
+  return SALES.rows.filter(s => (!from || (s.date && s.date >= from)) && (!to || (s.date && s.date <= to)));
+}
 function salesSummary(from, to){
-  const inR = s => (!from || (s.date && s.date >= from)) && (!to || (s.date && s.date <= to));
-  const rows = SALES.rows.filter(inR);
+  const rows = attributeSales(salesInRange(from, to));
   const sum = a => r2(a.reduce((x, s) => x + s.amount, 0));
   const design = rows.filter(s => s.origin === 'design');
   const direct = rows.filter(s => s.origin === 'direct');
-  const likely = rows.filter(s => s.how === 'likely');
-  const noDate = SALES.rows.filter(s => !s.date).length;
-  return { n:rows.length, total:sum(rows), design:sum(design), direct:sum(direct),
-    designN:design.length, directN:direct.length, likely:sum(likely), likelyN:likely.length,
-    pctDesign:pct(sum(design), sum(rows)), noDate };
+  const unknown = rows.filter(s => s.origin === 'unknown');
+  const byCode = rows.filter(s => s.how === 'code');
+  const accts = {}; rows.forEach(s => { accts[s.acct] = 1; });
+  const judged = sum(design) + sum(direct);
+  return { n:rows.length, rows, total:sum(rows), design:sum(design), direct:sum(direct),
+    unknown:sum(unknown), unknownN:unknown.length,
+    designN:design.length, directN:direct.length, byCode:sum(byCode), byCodeN:byCode.length,
+    judged, pctDesign:pct(sum(design), judged), accounts:Object.keys(accts).length };
+}
+function salesByKey(rows, key){
+  const m = {};
+  rows.forEach(s => { const k = s[key] || '(not set)';
+    m[k] = m[k] || { total:0, design:0, direct:0, unknown:0, n:0 };
+    m[k].total += s.amount; m[k].n++;
+    if(s.origin === 'design') m[k].design += s.amount;
+    else if(s.origin === 'direct') m[k].direct += s.amount; else m[k].unknown += s.amount; });
+  return Object.keys(m).map(k => Object.assign({ key:k }, m[k])).sort((a, b) => b.total - a.total);
 }
 async function loadSalesBuffer(buf, name){
   const sheets = await readWorkbook(buf);
   const picked = pickSalesSheet(sheets);
-  if(!picked) throw new Error('No sheet had a customer column and an amount column. A sales listing with one row per invoice is needed — a summary by item group cannot be split by origin.');
-  const rows = buildSales(picked);
-  if(!rows.length) throw new Error('That sheet was found but no invoice rows could be read from it.');
-  SALES = { rows:attributeSales(rows), file:name, loadedAt:new Date(), map:picked.map, sheet:picked.sheet.name };
+  if(!picked) throw new Error('No sheet looked like a sales report. It needs an Amount column and either a customer Account or an Item Code.');
+  const built = buildSales(picked);
+  if(!built.rows.length) throw new Error('That sheet was found but no sale rows could be read from it.');
+  const res = mergeSales(built.rows, name, built.skipped, built.totalRow);
+  return { picked, built, res };
 }
 function openSales(){
-  if(!DATA.jobs.length){ toast('Load the design job log first — the split works by matching customer names against it'); return; }
   pickBinary('.xlsx,.xlsm,.csv', async (buf, name) => {
     $('#loading').hidden = false;
-    try{ await loadSalesBuffer(buf, name); toast('Read ' + fmt(SALES.rows.length) + ' sales rows'); }
-    catch(e){ toast((e && e.message) ? e.message : 'That file could not be read'); }
+    try{
+      const r = await loadSalesBuffer(buf, name);
+      const sk = Object.keys(r.built.skipped);
+      ui.lastSalesSkip = r.built.skipped;
+      ui.lastSalesTotalRow = r.built.totalRow;
+      toast(r.res.added + ' sale lines added' + (r.res.dupes ? ', ' + r.res.dupes + ' already held' : '') +
+        (sk.length ? ' — non-sale entries left out' : ''));
+    }catch(e){ toast((e && e.message) ? e.message : 'That file could not be read'); }
     $('#loading').hidden = true; render();
   });
+}
+function parseCustomerMap(text){
+  let n = 0;
+  String(text || '').split(/\r?\n/).forEach(line => {
+    if(!line.trim()) return;
+    const cells = (line.indexOf('\t') >= 0 ? line.split('\t') : line.split(/,(.+)/)).map(s => (s || '').trim());
+    if(cells.length < 2 || !cells[0] || !cells[1]) return;
+    if(/^(account|code|customer)$/i.test(cells[0])) return;
+    CMAP[cells[0].toUpperCase()] = cells[1]; n++;
+  });
+  saveCmap();
+  return n;
 }
 
 /* ---------- the Sales screen ---------- */
 function tabSales(){
+  reviveSales();
   if(!SALES.rows.length){
     return '<div class="wrap"><section class="card welcome">' +
-      '<h2>Split company sales into design and showroom</h2>' +
-      '<p class="sub">Import the Sage sales listing and every invoice is matched by customer name against the design job log. Whatever matches came through your team; the rest is walk-in and showroom trade.</p>' +
-      '<button class="btn primary big" data-action="open-sales">Open a sales listing</button>' +
-      '<div class="alert warn" style="margin-top:18px;text-align:left"><b>It needs one row per invoice.</b> From Sage, export a sales or invoice listing to Excel with at least a <b>customer name</b> and an <b>amount</b> column — a date and document number help. ' +
-      'A summary by item group (such as the Inventory Transactions Summary) has no customer names in it, so it cannot be split this way.</div>' +
+      '<h2>Split company sales into design and counter</h2>' +
+      '<p class="sub">Import the Sage sales report. Nothing in the job log needs changing \u2014 the split is made by marking each sales rep once as design or counter.</p>' +
+      '<button class="btn primary big" data-action="open-sales">Open a sales report</button>' +
+      '<div class="alert warn" style="margin-top:18px;text-align:left"><b>What to export.</b> A transaction listing with one row per line: ' +
+      '<b>Amount</b> and <b>Rep</b> at minimum, plus Date, Tran, Group and Account. Withholding tax and stock-transfer rows are spotted and left out.</div>' +
       '</section></div>';
   }
   const w = ui.salesMonth ? monthWindow(ui.salesMonth) : { from:null, to:null };
   const S = salesSummary(w.from, w.to);
   const months = (() => { const m = {}; SALES.rows.forEach(s => { if(s.date) m[ym(s.date)] = 1; }); return Object.keys(m).sort().reverse(); })();
-  const byOrigin = {};
-  SALES.rows.filter(s => (!w.from || (s.date && s.date >= w.from)) && (!w.to || (s.date && s.date <= w.to)))
-    .forEach(s => { const k = s.group || '(no group)'; byOrigin[k] = byOrigin[k] || { d:0, x:0 };
-      byOrigin[k][s.origin === 'design' ? 'd' : 'x'] += s.amount; });
-  const groups = Object.keys(byOrigin).sort((a, b) => (byOrigin[b].d + byOrigin[b].x) - (byOrigin[a].d + byOrigin[a].x));
-  const review = SALES.rows.slice().sort((a, b) => b.amount - a.amount).slice(0, 60);
+  const groups = salesByKey(S.rows, 'group');
+  const reps = salesByKey(S.rows, 'rep');
+  const skip = SALES.skipped || {}, skipKeys = Object.keys(skip).filter(k => skip[k]);
+  const byRep = SPLIT.mode === 'rep';
+  const roleBtn = (name, role, label) =>
+    '<button class="chip ' + (repRole(name) === role ? 'on' : '') + '" data-action="rep-role" data-r="' + esc(name) + '" data-v="' + role + '">' + label + '</button>';
   return '<div class="wrap">' +
     '<div class="toolbar"><span class="lbl">Period</span>' +
-      '<select data-f="salesMonth"><option value="">All dates in the file</option>' +
+      '<select data-f="salesMonth"><option value="">Everything held (' + fmt(SALES.rows.length) + ' lines)</option>' +
       months.map(m => '<option value="' + m + '"' + (m === ui.salesMonth ? ' selected' : '') + '>' + ymLabel(m) + '</option>').join('') + '</select>' +
-      '<span style="flex:1"></span><span class="lbl">' + esc(SALES.file) + '</span>' +
-      '<button class="btn" data-action="open-sales">Load another</button></div>' +
+      '<span class="lbl" style="margin-left:14px">Split by</span>' +
+      '<button class="chip ' + (byRep ? 'on' : '') + '" data-action="split-mode" data-m="rep">Sales rep</button>' +
+      '<button class="chip ' + (byRep ? '' : 'on') + '" data-action="split-mode" data-m="customer">Customer</button>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn" data-action="open-sales">Add a month</button>' +
+      (byRep ? '' : '<button class="btn" data-action="cust-map">Customer names\u2026</button>') +
+      '<button class="btn danger" data-action="sales-clear">Clear history</button></div>' +
     '<div class="stats">' +
-      stat('Total sales', KSH(S.total), fmt(S.n) + ' invoices') +
-      stat('Through the design team', KSH(S.design), fmt(S.pctDesign, 1) + '% · ' + S.designN + ' invoices', 'good') +
-      stat('Direct / showroom', KSH(S.direct), fmt(100 - S.pctDesign, 1) + '% · ' + S.directN + ' invoices') +
-      stat('Matched on a likeness', KSH(S.likely), S.likelyN + ' invoices to check', S.likelyN ? 'warn' : '') +
+      stat('Sales invoiced', KSH(S.total), fmt(S.n) + ' lines \u00b7 ' + S.accounts + ' accounts') +
+      stat('Through the design team', KSH(S.design), fmt(S.pctDesign, 1) + '% of what is classified', S.design ? 'good' : 'warn') +
+      stat('Off the counter', KSH(S.direct), fmt(100 - S.pctDesign, 1) + '% of what is classified') +
+      stat('Not yet classified', KSH(S.unknown), S.unknownN + ' lines', S.unknown ? 'bad' : 'good') +
     '</div>' +
-    (S.noDate ? '<div class="alert warn">' + S.noDate + ' rows have no date, so they sit outside every period filter.</div>' : '') +
-    '<section class="card"><h2>By item group</h2>' +
-      '<div class="tablewrap"><table class="t"><thead><tr><th>Group</th><th class="r">Design team</th><th class="r">Direct</th><th class="r">Total</th><th class="r">Design share</th></tr></thead><tbody>' +
-      (groups.length ? groups.map(g => { const v = byOrigin[g], t = v.d + v.x;
-        return '<tr><td>' + esc(g) + '</td><td class="r">' + fmt(v.d) + '</td><td class="r">' + fmt(v.x) + '</td><td class="r"><b>' + fmt(t) + '</b></td>' +
-          '<td class="r">' + fmt(pct(v.d, t), 1) + '%</td></tr>'; }).join('')
-        : '<tr><td colspan="5" class="empty">The file has no item group column.</td></tr>') + '</tbody></table></div></section>' +
-    '<section class="card"><h2>Check the matching</h2><p class="sub">The largest 60 invoices. "Likeness" means the customer name was close but not identical — worth a glance before quoting the split.</p>' +
-      '<div class="tablewrap"><table class="t"><thead><tr><th>Customer</th><th>Date</th><th class="r">Amount</th><th>Origin</th><th>Matched design job</th></tr></thead><tbody>' +
-      review.map(s => '<tr><td>' + esc(s.customer) + '</td><td>' + (s.date ? dmy(s.date) : '—') + '</td><td class="r">' + fmt(s.amount) + '</td>' +
-        '<td><span class="pill ' + (s.how === 'exact' ? 'green' : s.how === 'likely' ? 'amber' : 'grey') + '">' +
-        (s.how === 'exact' ? 'Design' : s.how === 'likely' ? 'Design (likeness)' : 'Direct') + '</span></td>' +
-        '<td>' + (s.job ? esc(s.job.client) + ' <span class="pill grey">row ' + s.job.row + '</span>' : '—') + '</td></tr>').join('') +
-      '</tbody></table></div></section></div>';
+    (byRep && S.unknown ? '<div class="alert"><b>' + KSH(S.unknown) + ' is not counted either way.</b> Mark the remaining reps below as design or counter and the split covers everything.</div>' : '') +
+    (skipKeys.length ? '<div class="alert warn"><b>Left out, because they are not sales:</b> ' +
+      skipKeys.map(k => esc(k) + ' ' + fmt(skip[k])).join(' \u00b7 ') + '.' +
+      (SALES.totalRow ? ' The report\u2019s own Total of ' + fmt(SALES.totalRow) + ' includes them, so it overstates the figure.' : '') + '</div>' : '') +
+    (byRep
+      ? '<section class="card"><h2>Who sells through design, who sells over the counter</h2>' +
+        '<p class="sub">Mark each rep once. It is remembered, so a new month needs nothing more than importing the file.</p>' +
+        '<div class="tablewrap"><table class="t"><thead><tr><th>Sales rep</th><th class="r">Value</th><th class="r">Lines</th><th class="r">Accounts</th><th>Counts as</th></tr></thead><tbody>' +
+        reps.map(g => '<tr><td><b>' + esc(g.key) + '</b></td><td class="r">' + fmt(g.total) + '</td><td class="r">' + fmt(g.n) + '</td>' +
+          '<td class="r">' + fmt(Object.keys(S.rows.filter(x => (x.rep || '(not set)') === g.key).reduce((o, x) => { o[x.acct] = 1; return o; }, {})).length) + '</td>' +
+          '<td>' + roleBtn(g.key, 'design', 'Design') + ' ' + roleBtn(g.key, 'counter', 'Counter') +
+          (repRole(g.key) ? ' <button class="chip" data-action="rep-role" data-r="' + esc(g.key) + '" data-v="">clear</button>' : '') + '</td></tr>').join('') +
+        '</tbody></table></div></section>'
+      : '<section class="card"><h2>Matching customers</h2>' +
+        '<p class="sub">Each sale is tied to a design job by customer. This needs the sales report to carry an account <b>name</b>, or a pasted code-and-name list.</p>' +
+        '<div class="row-actions" style="display:flex;gap:8px"><button class="btn" data-action="cust-map">Paste customer names</button></div>' +
+        '<p class="hint">' + S.byCodeN + ' lines matched on a code held in the job log; ' + S.designN + ' matched altogether.</p></section>') +
+    '<section class="card"><h2>By product group</h2>' +
+      '<div class="tablewrap"><table class="t"><thead><tr><th>Group</th><th class="r">Design team</th><th class="r">Counter</th>' +
+      (S.unknown ? '<th class="r">Unclassified</th>' : '') + '<th class="r">Total</th><th class="r">Design share</th></tr></thead><tbody>' +
+      groups.map(g => '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.design) + '</td><td class="r">' + fmt(g.direct) + '</td>' +
+        (S.unknown ? '<td class="r">' + fmt(g.unknown) + '</td>' : '') +
+        '<td class="r"><b>' + fmt(g.total) + '</b></td><td class="r">' + fmt(pct(g.design, g.design + g.direct), 1) + '%</td></tr>').join('') +
+      '</tbody><tfoot><tr><td>Total</td><td class="r">' + fmt(S.design) + '</td><td class="r">' + fmt(S.direct) + '</td>' +
+      (S.unknown ? '<td class="r">' + fmt(S.unknown) + '</td>' : '') +
+      '<td class="r">' + fmt(S.total) + '</td><td class="r">' + fmt(S.pctDesign, 1) + '%</td></tr></tfoot></table></div></section></div>';
 }
-/* a report page, only when a sales file has been loaded */
+function custMapModal(){
+  return '<div class="modal-ov" data-action="modal-bg"><div class="modal wide"><h3>Customer names</h3>' +
+    '<p class="sub">The sales report uses account codes. Paste a code-and-name list from Sage so unmatched accounts can be read by name, and so matching still works while the job log has no code column. One per line: <b>code, name</b>, or paste two columns straight from Excel.</p>' +
+    '<label class="fld"><span>' + Object.keys(CMAP).length + ' names held</span>' +
+    '<textarea rows="10" id="cmapBox" placeholder="ARN0008&#9;ARNOLD OGOLLA&#10;DEF001&#9;DEFENCE FORCES CANTEEN ORGANISATION&#10;RAT0002&#9;RATADO HOMES"></textarea></label>' +
+    '<div class="modal-foot"><button class="btn danger" data-action="cmap-clear">Forget them</button>' +
+    '<button class="btn" data-action="modal-close">Cancel</button>' +
+    '<button class="btn primary" data-action="cmap-save">Add these</button></div></div></div>';
+}
 function salesPageHTML(R){
+  reviveSales();
   if(!SALES.rows.length) return '';
   const S = salesSummary(R.w.from, R.w.to);
   if(!S.n) return '';
-  const byOrigin = {};
-  SALES.rows.filter(s => s.date && s.date >= R.w.from && s.date <= R.w.to)
-    .forEach(s => { const k = s.group || '(no group)'; byOrigin[k] = byOrigin[k] || { d:0, x:0 };
-      byOrigin[k][s.origin === 'design' ? 'd' : 'x'] += s.amount; });
-  const groups = Object.keys(byOrigin).sort((a, b) => (byOrigin[b].d + byOrigin[b].x) - (byOrigin[a].d + byOrigin[a].x));
+  const groups = salesByKey(S.rows, 'group');
+  const reps = salesByKey(S.rows, 'rep').slice(0, 10);
   return '<section class="rpage">' + pageHead(R, 'Company sales — design office against direct trade') +
     '<h2>Split of the month</h2>' +
-    rTable(['Origin', 'Invoices', 'Value', 'Share'], [
+    rTable(['Origin', 'Lines', 'Value', 'Share'], [
       '<tr><td>Through the design office</td>' + rc(fmt(S.designN)) + rc(fmt(S.design), 1) + rc(fmt(S.pctDesign, 1) + '%', 1) + '</tr>',
-      '<tr><td>Direct and showroom</td>' + rc(fmt(S.directN)) + rc(fmt(S.direct)) + rc(fmt(100 - S.pctDesign, 1) + '%') + '</tr>',
-      '<tr><td><b>Total</b></td>' + rc(fmt(S.n), 1) + rc(fmt(S.total), 1) + rc('100%') + '</tr>'
-    ], 'Each invoice is attributed by matching its customer against the design job log. ' +
-       (S.likelyN ? S.likelyN + ' invoices worth ' + fmt(S.likely) + ' matched on a likeness rather than an identical name and could move either way. ' : '') +
-       'A client who first came through design but later bought directly will still count as design.') +
-    (groups.length ? '<h2>By item group</h2>' +
-      rTable(['Group', 'Design office', 'Direct', 'Total', 'Design share'], groups.map(g => {
-        const v = byOrigin[g], t = v.d + v.x;
-        return '<tr><td>' + esc(g) + '</td>' + rc(fmt(v.d)) + rc(fmt(v.x)) + rc(fmt(t), 1) + rc(fmt(pct(v.d, t), 1) + '%') + '</tr>';
-      })) : '') +
-    '<p class="note">Source: ' + esc(SALES.file) + (SALES.sheet ? ', sheet "' + esc(SALES.sheet) + '"' : '') + ', ' + fmt(SALES.rows.length) + ' invoice rows.</p>' +
+      '<tr><td>Off the counter</td>' + rc(fmt(S.directN)) + rc(fmt(S.direct)) + rc(fmt(100 - S.pctDesign, 1) + '%') + '</tr>'
+    ].concat(S.unknown ? ['<tr><td>Not classified</td>' + rc(fmt(S.unknownN)) + rc(fmt(S.unknown)) + rc('\u2014') + '</tr>'] : [])
+     .concat(['<tr><td><b>Total invoiced</b></td>' + rc(fmt(S.n), 1) + rc(fmt(S.total), 1) + rc('100%') + '</tr>']),
+      (SPLIT.mode === 'rep'
+        ? 'Each sale is counted by its sales rep: reps working with the design office count as design, counter staff as counter trade. The shares above are of the classified value.'
+        : 'Each line is tied to a design job by customer. The shares above are of the classified value.') +
+      ' Withholding tax and stock-transfer entries in the source report are excluded, as they are not sales.') +
+    '<h2>By product group</h2>' +
+    rTable(['Group', 'Design office', 'Counter', 'Total', 'Design share'], groups.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.design)) + rc(fmt(g.direct)) + rc(fmt(g.total), 1) + rc(fmt(pct(g.design, g.design + g.direct), 1) + '%') + '</tr>')) +
+    '<h2>By sales rep</h2>' +
+    rTable(['Rep', 'Total', 'Counts as'], reps.map(g =>
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.total), 1) +
+      rc(SPLIT.mode === 'rep' ? (repRole(g.key) === 'design' ? 'Design' : repRole(g.key) === 'counter' ? 'Counter' : 'not classified')
+         : (g.design ? 'mixed' : 'counter')) + '</tr>')) +
+    '<p class="note">Source: ' + esc(SALES.files.join(', ')) + ', ' + fmt(S.n) + ' invoice lines in the period.</p>' +
     '</section>';
 }
 
@@ -1585,7 +1711,10 @@ function salesPageHTML(R){
    Monthly report + loading + events
    ===================================================================== */
 function monthOptions(){
-  const m = {}; DATA.jobs.forEach(j => { if(j.month) m[j.month] = 1; });
+  const m = {};
+  DATA.jobs.forEach(j => { if(j.month) m[j.month] = 1; });
+  /* a month can have sales but no new design requests, and still needs a report */
+  if(typeof SALES !== 'undefined' && SALES.rows) SALES.rows.forEach(s => { if(s.date) m[ym(s.date)] = 1; });
   return Object.keys(m).sort().reverse();
 }
 function tabReport(){
@@ -1739,7 +1868,9 @@ function render(){
   $('#tabs').innerHTML = TABS.map(t => '<button class="tab ' + (ui.tab === t[0] ? 'active' : '') + '" data-action="tab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('');
   const has = DATA.jobs.length > 0;
   $('#fileName').textContent = DATA.file || 'No file loaded';
-  if(!has && ui.tab !== 'data'){
+  /* the sales split stands on its own; it does not need the job log */
+  const salesOnly = ui.tab === 'sales' && typeof SALES !== 'undefined' && SALES.rows.length;
+  if(!has && ui.tab !== 'data' && !salesOnly){
     $('#panel').innerHTML = '<div class="wrap"><section class="card welcome">' +
       '<h2>Point this at the team\'s job log</h2>' +
       '<p class="sub">Open the Excel file the team keeps in Teams. Nothing is uploaded anywhere — the file is read here in the browser and the numbers are worked out on this computer.</p>' +
@@ -1752,7 +1883,9 @@ function render(){
   const fn = { overview:tabOverview, targets:tabTargets, tat:tabTat, conv:tabConv, fup:tabFup, sales:tabSales, report:tabReport, data:tabData }[ui.tab];
   const body = fn();
   $('#panel').innerHTML = cloud.from ? body.replace('<div class="wrap">', '<div class="wrap">' + snapshotBanner()) : body;
-  $('#modalRoot').innerHTML = ui.modal === 'targets' ? targetsModal() : (ui.modal === 'cloud' ? cloudModal() : '');
+  $('#modalRoot').innerHTML = ui.modal === 'targets' ? targetsModal()
+    : ui.modal === 'cloud' ? cloudModal()
+    : ui.modal === 'cmap' ? custMapModal() : '';
 }
 
 /* ---------- events ---------- */
@@ -1775,6 +1908,23 @@ document.addEventListener('click', e => {
   else if(a === 'reset-targets'){ if(confirm('Put the targets back to the starting values?')){ T = JSON.parse(JSON.stringify(DEFAULT_TARGETS)); saveTargets(); render(); } }
   else if(a === 'open') openFile();
   else if(a === 'open-sales') openSales();
+  else if(a === 'cust-map'){ ui.modal = 'cmap'; render(); }
+  else if(a === 'split-mode'){ SPLIT.mode = d.m; saveSplit(); render(); }
+  else if(a === 'rep-role'){
+    const k = repKey(d.r);
+    if(d.v) SPLIT.reps[k] = d.v; else delete SPLIT.reps[k];
+    saveSplit(); render();
+  }
+  else if(a === 'cmap-save'){
+    const t = $('#cmapBox'); const n = parseCustomerMap(t ? t.value : '');
+    ui.modal = null; render(); toast(n ? (n + ' customer names added') : 'Nothing could be read from that');
+  }
+  else if(a === 'cmap-clear'){ if(confirm('Forget every stored customer name?')){ CMAP = {}; saveCmap(); render(); } }
+  else if(a === 'sales-clear'){
+    if(confirm('Clear the whole sales history held on this computer?')){
+      SALES = { rows:[], files:[], loadedAt:null, skipped:{}, totalRow:null }; saveSales(); render();
+    }
+  }
   else if(a === 'report-detail'){ ui.reportDetail = !ui.reportDetail; render(); }
   else if(a === 'reload') openFile();
   else if(a === 'sortfup'){ ui.sortFup = d.k; render(); }
@@ -1844,6 +1994,7 @@ window.addEventListener('drop', async e => {
 /* ---------- startup ---------- */
 loadTargets();
 loadCloudCfg();
+loadSalesStore();
 render();
 /* on a phone there is no Teams file, so fall back to the published copy */
 if(cloudOn() && !DATA.jobs.length){
