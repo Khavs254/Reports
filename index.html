@@ -155,6 +155,11 @@ table.t tr.future td{color:var(--muted);background:#fafbfe}
   .modal{padding:15px 15px 12px}
 }
 
+.picks{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 13px;margin-bottom:14px}
+.picks .lbl{font-size:11.5px;font-weight:700;color:var(--muted)}
+.pick{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.pick input{margin:0}
+@media print{.picks{display:none!important}}
 .rpage+.rpage{margin-top:20px}
 @media print{.rpage{break-after:page;page-break-after:always}.rpage.last{break-after:auto;page-break-after:auto}}
 
@@ -582,7 +587,9 @@ function convStats(jobs){
   const openValue = jobs.filter(j => j.outcome === 'open').reduce((a, j) => a + j.value, 0);
   return { total:jobs.length, quoted:quoted.length, decided:decided.length, won:won.length,
     lost:decided.length - won.length, open:jobs.length - decided.length,
-    rateDecided:pct(won.length, decided.length), rateAll:pct(won.length, jobs.length),
+    /* Win rate is won against every request received, including those still
+       sitting with the client. */
+    rateDecided:pct(won.length, jobs.length), rateOfDecided:pct(won.length, decided.length), rateAll:pct(won.length, jobs.length),
     rateQuoted:pct(won.length, quoted.length),
     wonValue, allValue, openValue, valueRate:pct(wonValue, allValue),
     avgWon: won.length ? wonValue / won.length : 0 };
@@ -592,7 +599,7 @@ function groupBy(jobs, key){
   jobs.forEach(j => { const k = j[key] || '(blank)'; (m[k] = m[k] || []).push(j); });
   return Object.keys(m).map(k => {
     const g = m[k], c = convStats(g), t = tatStats(g);
-    return { key:k, jobs:g, n:g.length, won:c.won, decided:c.decided, rate:c.rateDecided,
+    return { key:k, jobs:g, n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, g.length), rateOfDecided:c.rateOfDecided,
       value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, tatN:t.n };
   }).sort((a, b) => b.n - a.n);
 }
@@ -601,7 +608,7 @@ function byMonth(jobs){
   jobs.forEach(j => { if(!j.month) return; (m[j.month] = m[j.month] || []).push(j); });
   return Object.keys(m).sort().map(k => {
     const g = m[k], c = convStats(g), t = tatStats(g);
-    return { key:k, label:ymLabel(k), n:g.length, won:c.won, decided:c.decided, rate:c.rateDecided,
+    return { key:k, label:ymLabel(k), n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, g.length),
       value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, jobs:g };
   });
 }
@@ -629,7 +636,7 @@ function followUps(jobs){
 const TABS = [['overview','Overview'],['targets','Targets'],['tat','Turnaround'],['conv','Conversion'],['fup','Follow-ups'],['sales','Sales split'],['report','Monthly report'],['data','Data quality']];
 let F = { from:null, to:null, type:'', rep:'', designer:'' };
 const ui = { tab:'overview', reportMonth:'', sortFup:'age', print:false, fy:null, modal:null, showSql:false, keepMonth:false, salesMonth:'', reportDetail:true,
-  reportMode:'month', reportFrom:null, reportTo:null };
+  reportMode:'month', reportFrom:null, reportTo:null, reportPick:{} };
 
 const stat = (k, v, s, cls) => '<div class="stat ' + (cls || '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div>' + (s ? '<div class="s">' + s + '</div>' : '') + '</div>';
 const KSH = n => 'KSh ' + fmt(n);
@@ -780,7 +787,7 @@ function tabConv(){
       stat('Open pipeline', KSH(c.openValue), c.open + ' jobs awaiting a decision') +
     '</div>' +
     '<section class="card"><h2>Win rate by month</h2>' + lineChart(months.map(m => ({ k:m.label.slice(0, 3) + ' ' + m.label.slice(-2), v:m.rate })), { dp:1, suffix:'%' }) +
-      '<p class="hint">Of the jobs received that month which have since been decided.</p></section>' +
+      '<p class="hint">Won jobs as a share of every request received that month.</p></section>' +
     '<div class="split2">' +
       '<section class="card"><h2>Why jobs are lost</h2>' + barChart(losses.map(l => ({ k:l.k, v:l.v, c:'var(--red)' }))) + '</section>' +
       '<section class="card"><h2>Win rate by product</h2>' +
@@ -1190,7 +1197,7 @@ function rTable(head, rows, note){
 const rc = (v, bold) => '<td class="r">' + (bold ? '<b>' + v + '</b>' : v) + '</td>';
 function pageHead(R, sub){
   return '<div class="rhead"><div><h1>Design office — ' + esc(R.label) + '</h1><div class="sub">' + sub + '</div></div>' +
-    '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '<br>Source: ' + esc(DATA.file || 'job log') + '</div></div>';
+    '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '</div></div>';
 }
 
 /* ---------- page 2: turnaround ---------- */
@@ -1248,8 +1255,8 @@ function pgConversion(R){
   const lossRows = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
   const months = byMonth(DATA.jobs).slice(-12);
   return '<section class="rpage">' + pageHead(R, 'Conversion in detail') +
-    '<h2>Summary</h2><p>Win rate counts only the requests the client has actually decided on. Requests still sitting with the client are excluded, so a quiet month does not flatter the rate. ' +
-      'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', ' + c.decided + ' have been decided, ' + c.won + ' were won and ' + c.open + ' are still open.</p>' +
+    '<h2>Summary</h2><p>Win rate is work won against every request received, including those still with the client, so holding requests open never flatters it. ' +
+      'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>. ' + (c.decided - c.won) + ' were lost and ' + c.open + ' are still with the client.</p>' +
     rTable(['Measure', esc(R.label), esc(R.prevLabel)], [
       '<tr><td>Requests received</td>' + rc(fmt(c.total), 1) + rc(fmt(cp.total)) + '</tr>',
       '<tr><td>Decided</td>' + rc(fmt(c.decided)) + rc(fmt(cp.decided)) + '</tr>',
@@ -1275,7 +1282,7 @@ function pgConversion(R){
     '<h2>Twelve-month trend</h2>' +
     rTable(['Month', 'Received', 'Decided', 'Won', 'Win rate', 'Median TAT'], months.map(m =>
       '<tr><td>' + m.label + '</td>' + rc(fmt(m.n)) + rc(fmt(m.decided)) + rc(fmt(m.won)) + rc(fmt(m.rate, 1) + '%') + rc(fmt(m.tat, 1)) + '</tr>'),
-      'Recent months carry fewer decisions and will move as jobs close. Read the older months for trend.') +
+      'Recent months still hold undecided requests, so their rate will rise as those close. Read the older months for trend.') +
     '</section>';
 }
 
@@ -1359,10 +1366,20 @@ function pgMethod(R){
     '<p class="note">Prepared by ' + esc('Dennis Kihiu') + ' from the design office job log. Figures recalculate whenever the log is reloaded, so a later print may differ from this one.</p>' +
     '</section>';
 }
+/* The sections of the report, each able to be left out of the print */
+const REPORT_PAGES = [
+  ['summary',    'Summary',        R => reportHTML()],
+  ['turnaround', 'Turnaround',     R => pgTurnaround(R)],
+  ['conversion', 'Conversion',     R => pgConversion(R)],
+  ['targets',    'Targets',        R => pgTargets(R)],
+  ['followups',  'Follow-ups',     R => pgFollowUps(R)],
+  ['sales',      'Sales split',    R => (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '')]
+];
+const pageOn = k => ui.reportPick[k] !== false;
 function fullReportHTML(){
   const R = reportData();
-  const pages = [reportHTML(), pgTurnaround(R), pgConversion(R), pgTargets(R), pgFollowUps(R),
-    (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '')].filter(Boolean);
+  const pages = REPORT_PAGES.filter(x => pageOn(x[0])).map(x => x[2](R)).filter(Boolean);
+  if(!pages.length) return '';
   return pages.join('').replace(/class="rpage"(?![\s\S]*class="rpage")/, 'class="rpage last"');
 }
 
@@ -1740,7 +1757,12 @@ function tabReport(){
     '<span class="lbl">' + n + ' page' + (n === 1 ? '' : 's') + '</span>' +
     '<span style="flex:1"></span><button class="btn" data-action="copy-report">Copy as text</button>' +
     '<button class="btn primary" data-action="print">Print / Save as PDF</button></div>' +
-    '<div class="paper">' + pages + '</div></div>';
+    (ui.reportDetail ? '<div class="picks"><span class="lbl">Include</span>' +
+      REPORT_PAGES.filter(x => x[2](reportData())).map(x =>
+        '<label class="pick"><input type="checkbox" data-action="page-pick" data-k="' + x[0] + '"' + (pageOn(x[0]) ? ' checked' : '') + '>' +
+        '<span>' + x[1] + '</span></label>').join('') +
+      '<button class="btn sm" data-action="pick-all">All</button></div>' : '') +
+    '<div class="paper">' + (pages || '<div class="empty" style="color:#fff">Nothing selected — tick at least one section above.</div>') + '</div></div>';
 }
 function monthWindow(key){
   const [y, m] = key.split('-').map(Number);
@@ -1764,6 +1786,12 @@ function windowLabel(w){
   if(w.key) return ymLabel(w.key);
   const sameMonth = w.from.getFullYear() === w.to.getFullYear() && w.from.getMonth() === w.to.getMonth();
   if(sameMonth) return ymLabel(ym(w.from));
+  const startsMonth = w.from.getDate() === 1;
+  const endsMonth = w.to.getDate() === new Date(w.to.getFullYear(), w.to.getMonth() + 1, 0).getDate();
+  if(startsMonth && endsMonth){
+    const a = MON[w.from.getMonth()] + (w.from.getFullYear() === w.to.getFullYear() ? '' : ' ' + w.from.getFullYear());
+    return a + ' to ' + MON[w.to.getMonth()] + ' ' + w.to.getFullYear();
+  }
   return dmy(w.from) + ' to ' + dmy(w.to);
 }
 function prevWindow(w){
@@ -1772,6 +1800,16 @@ function prevWindow(w){
     const p = ym(new Date(y, m - 2, 1));
     const pw = monthWindow(p);
     return { from:pw.from, to:pw.to, key:p };
+  }
+  /* A span of whole months is compared with the same number of whole months
+     before it, so the dates read cleanly rather than landing mid-month. */
+  const startsMonth = w.from.getDate() === 1;
+  const endsMonth = w.to.getDate() === new Date(w.to.getFullYear(), w.to.getMonth() + 1, 0).getDate();
+  if(startsMonth && endsMonth){
+    const months = (w.to.getFullYear() * 12 + w.to.getMonth()) - (w.from.getFullYear() * 12 + w.from.getMonth()) + 1;
+    const from = new Date(w.from.getFullYear(), w.from.getMonth() - months, 1);
+    const to = new Date(w.from.getFullYear(), w.from.getMonth(), 0);
+    return { from, to, key:'' };
   }
   const days = Math.max(1, Math.round((w.to - w.from) / DAY) + 1);
   return { from:new Date(w.from.getTime() - days * DAY), to:new Date(w.from.getTime() - DAY), key:'' };
@@ -1809,7 +1847,7 @@ function reportHTML(){
   return '<section class="rpage">' +
     '<div class="rhead"><div><h1>Design office — ' + esc(R.label) + '</h1>' +
       '<div class="sub">Turnaround, conversion and open pipeline</div></div>' +
-      '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '<br>Source: ' + esc(DATA.file || 'job log') + '</div></div>' +
+      '<div class="meta">SPACE AND STYLE LTD<br>Prepared ' + dmy(TODAY) + '</div></div>' +
     '<div class="kv">' +
       '<div><div class="k">REQUESTS RECEIVED</div><div class="v">' + fmt(c.total) + '</div><div class="k">' + delta(c.total, cp.total, false, 0) + ' vs ' + esc(R.prevLabel) + '</div></div>' +
       '<div><div class="k">MEDIAN QUOTE TAT</div><div class="v">' + fmt(t.median, 1) + ' d</div><div class="k">' + delta(t.median, tp.median, true, 1, ' d') + ' vs ' + esc(R.prevLabel) + '</div></div>' +
@@ -1823,7 +1861,7 @@ function reportHTML(){
     tbl(['Product', 'Requests', 'Quoted', 'Median days'], topTypes.map(g =>
       '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.n) + '</td><td class="r">' + fmt(g.tatN) + '</td><td class="r">' + (g.tatN ? fmt(g.tat, 1) : '—') + '</td></tr>')) +
     '<h2>Conversion</h2>' +
-    '<p>Of the ' + c.total + ' requests, <b>' + c.decided + '</b> have been decided and <b>' + c.won + '</b> were won — a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>' +
+    '<p>Of the ' + c.total + ' requests received, <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>' +
       (cp.decided ? ' against ' + fmt(cp.rateDecided, 1) + '% in ' + esc(R.prevLabel) : '') + '. ' +
       'Won work is worth <b>KSh ' + fmt(c.wonValue) + '</b> of the KSh ' + fmt(c.allValue) + ' quoted. ' +
       c.open + ' requests are still with the client, carrying KSh ' + fmt(c.openValue) + '.</p>' +
@@ -1836,7 +1874,7 @@ function reportHTML(){
     tbl(['Oldest open requests', 'Product', 'Sales rep', 'Value', 'Age'], oldest.map(j =>
       '<tr><td>' + esc(j.client || '(no name)') + '</td><td class="r">' + esc(j.type) + '</td><td class="r">' + esc(j.rep) + '</td><td class="r">' + (j.value ? fmt(j.value) : '—') + '</td><td class="r">' + (j.age == null ? '—' : j.age + ' d') + '</td></tr>')) +
     salesSummaryBlock(R) +
-    '<p class="note">Turnaround is measured from the date drawings are received to the date the quotation is sent. Win rate counts only requests the client has decided on; undecided requests are excluded so the rate is not flattered by a slow period.</p>' +
+    '<p class="note">Turnaround is measured from the date drawings are received to the date the quotation is sent. Win rate is work won against every request received, including those still with the client, so holding requests open never flatters it.</p>' +
     '</section>';
 }
 /* Company sales on the summary page, whenever a sales report has been loaded */
@@ -1999,6 +2037,8 @@ document.addEventListener('click', e => {
     }
   }
   else if(a === 'report-detail'){ ui.reportDetail = !ui.reportDetail; render(); }
+  else if(a === 'page-pick'){ ui.reportPick[d.k] = !pageOn(d.k); render(); }
+  else if(a === 'pick-all'){ ui.reportPick = {}; render(); }
   else if(a === 'report-mode'){
     ui.reportMode = d.m;
     if(d.m === 'range' && !ui.reportFrom){ const w = monthWindow(ui.reportMonth); ui.reportFrom = w.from; ui.reportTo = w.to; }
