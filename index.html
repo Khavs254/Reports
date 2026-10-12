@@ -155,10 +155,15 @@ table.t tr.future td{color:var(--muted);background:#fafbfe}
   .modal{padding:15px 15px 12px}
 }
 
-.picks{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 13px;margin-bottom:14px}
-.picks .lbl{font-size:11.5px;font-weight:700;color:var(--muted)}
+.picks{background:#fff;border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:14px}
+.picks-head{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.picks .lbl{font-size:11.5px;font-weight:700;color:var(--muted);flex:1}
+.pickgrp{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;padding:5px 0;border-top:1px solid var(--line)}
 .pick{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.pick.strong{min-width:112px;color:var(--ink);font-weight:800}
+.pick.sub{font-weight:500;font-size:12.5px}
 .pick input{margin:0}
+.pick input:disabled+span{opacity:.4}
 @media print{.picks{display:none!important}}
 .rpage+.rpage{margin-top:20px}
 @media print{.rpage{break-after:page;page-break-after:always}.rpage.last{break-after:auto;page-break-after:auto}}
@@ -1376,9 +1381,49 @@ const REPORT_PAGES = [
   ['sales',      'Sales split',    R => (typeof salesPageHTML === 'function' ? salesPageHTML(R) : '')]
 ];
 const pageOn = k => ui.reportPick[k] !== false;
+const sectKey = (pageKey, heading) => pageKey + '|' + String(heading).replace(/<[^>]*>/g, '').trim().toLowerCase();
+const stripTags = h => String(h).replace(/<[^>]*>/g, '').trim();
+
+/* Every heading inside a page can be left out on its own, so the printed
+   report can be cut down to exactly what the meeting needs. */
+function pageSections(html){
+  const m = /^([\s\S]*?<section class="rpage[^"]*">)([\s\S]*)<\/section>\s*$/.exec(html);
+  if(!m) return null;
+  const open = m[1], inner = m[2];
+  const first = inner.search(/<h2[\s>]/);
+  if(first < 0) return { open, head:inner, parts:[] };
+  const head = inner.slice(0, first);
+  const parts = inner.slice(first).split(/(?=<h2[\s>])/).map(chunk => {
+    const h = /<h2[^>]*>([\s\S]*?)<\/h2>/.exec(chunk);
+    return { title: h ? stripTags(h[1]) : '', html: chunk };
+  });
+  return { open, head, parts };
+}
+/* [{key,label,sections:[{key,label}]}] for the tick list */
+function reportOutline(){
+  const R = reportData();
+  const out = [];
+  REPORT_PAGES.forEach(([k, label, fn]) => {
+    const html = fn(R);
+    if(!html) return;
+    const sp = pageSections(html);
+    out.push({ key:k, label, sections: sp ? sp.parts.filter(x => x.title).map(x => ({ key:sectKey(k, x.title), label:x.title })) : [] });
+  });
+  return out;
+}
 function fullReportHTML(){
   const R = reportData();
-  const pages = REPORT_PAGES.filter(x => pageOn(x[0])).map(x => x[2](R)).filter(Boolean);
+  const pages = [];
+  REPORT_PAGES.forEach(([k, label, fn]) => {
+    if(!pageOn(k)) return;
+    const html = fn(R);
+    if(!html) return;
+    const sp = pageSections(html);
+    if(!sp){ pages.push(html); return; }
+    const kept = sp.parts.filter(x => !x.title || pageOn(sectKey(k, x.title)));
+    if(!kept.length && !stripTags(sp.head)) return;          /* nothing left on this page */
+    pages.push(sp.open + sp.head + kept.map(x => x.html).join('') + '</section>');
+  });
   if(!pages.length) return '';
   return pages.join('').replace(/class="rpage"(?![\s\S]*class="rpage")/, 'class="rpage last"');
 }
@@ -1757,11 +1802,16 @@ function tabReport(){
     '<span class="lbl">' + n + ' page' + (n === 1 ? '' : 's') + '</span>' +
     '<span style="flex:1"></span><button class="btn" data-action="copy-report">Copy as text</button>' +
     '<button class="btn primary" data-action="print">Print / Save as PDF</button></div>' +
-    (ui.reportDetail ? '<div class="picks"><span class="lbl">Include</span>' +
-      REPORT_PAGES.filter(x => x[2](reportData())).map(x =>
-        '<label class="pick"><input type="checkbox" data-action="page-pick" data-k="' + x[0] + '"' + (pageOn(x[0]) ? ' checked' : '') + '>' +
-        '<span>' + x[1] + '</span></label>').join('') +
-      '<button class="btn sm" data-action="pick-all">All</button></div>' : '') +
+    (ui.reportDetail ? '<div class="picks"><div class="picks-head"><span class="lbl">Include in the printed report</span>' +
+      '<button class="btn sm" data-action="pick-all">All</button>' +
+      '<button class="btn sm" data-action="pick-none">None</button></div>' +
+      reportOutline().map(pgx =>
+        '<div class="pickgrp"><label class="pick strong"><input type="checkbox" data-action="page-pick" data-k="' + pgx.key + '"' + (pageOn(pgx.key) ? ' checked' : '') + '>' +
+        '<span>' + esc(pgx.label) + '</span></label>' +
+        pgx.sections.map(sx => '<label class="pick sub"><input type="checkbox" data-action="page-pick" data-k="' + esc(sx.key) + '"' +
+          (pageOn(sx.key) ? ' checked' : '') + (pageOn(pgx.key) ? '' : ' disabled') + '>' +
+          '<span>' + esc(sx.label) + '</span></label>').join('') + '</div>').join('') +
+      '</div>' : '') +
     '<div class="paper">' + (pages || '<div class="empty" style="color:#fff">Nothing selected — tick at least one section above.</div>') + '</div></div>';
 }
 function monthWindow(key){
@@ -2039,6 +2089,11 @@ document.addEventListener('click', e => {
   else if(a === 'report-detail'){ ui.reportDetail = !ui.reportDetail; render(); }
   else if(a === 'page-pick'){ ui.reportPick[d.k] = !pageOn(d.k); render(); }
   else if(a === 'pick-all'){ ui.reportPick = {}; render(); }
+  else if(a === 'pick-none'){
+    ui.reportPick = {};
+    reportOutline().forEach(pgx => { ui.reportPick[pgx.key] = false; pgx.sections.forEach(sx => { ui.reportPick[sx.key] = false; }); });
+    render();
+  }
   else if(a === 'report-mode'){
     ui.reportMode = d.m;
     if(d.m === 'range' && !ui.reportFrom){ const w = monthWindow(ui.reportMonth); ui.reportFrom = w.from; ui.reportTo = w.to; }
