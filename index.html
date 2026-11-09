@@ -883,8 +883,9 @@ function fyRange(y){
   return { from:new Date(y, s - 1, 1), to:new Date(y + 1, s - 1, 0) };
 }
 const fyLabel = y => (+T.fyStart === 1) ? String(y) : (y + '/' + String(y + 1).slice(2));
-/* a won job counts on the date it was won; the log rarely has that, so fall back */
-const wonOn = j => j.wonDate || j.received;
+/* a won job counts on the date it was won; if that is blank, on the date the quote was submitted;
+   received is only a last resort when neither is recorded */
+const wonOn = j => j.wonDate || j.quoted || j.received;
 const weightFor = (line, type) => (line.map && line.map[type] != null) ? num(line.map[type]) / 100 : 0;
 
 function lineFigures(line, y){
@@ -976,7 +977,7 @@ function tabTargets(){
     '<div class="toolbar"><span class="lbl">Financial year</span>' +
     '<select data-f="fy">' + years.map(y => '<option value="' + y + '"' + (y === ui.fy ? ' selected' : '') + '>' + fyLabel(y) + '</option>').join('') + '</select>' +
     '<span style="flex:1"></span><button class="btn" data-action="edit-targets">Edit targets</button></div>' +
-    (DATA.map.wonDate === undefined ? '<div class="alert warn"><b>No "Date won" column in the log.</b> Won value is being counted in the month the request was <i>received</i>, not the month the order came in. For target tracking that is the wrong month whenever a job takes weeks to close — add a Date won column to the log and this corrects itself.</div>' : '') +
+    (DATA.map.wonDate === undefined ? '<div class="alert warn"><b>No "Date won" column in the log.</b> Won value is being counted in the month the quote was <i>submitted</i>. Add a Date won column to the log for the exact month the order came in.</div>' : '') +
     '<div class="stats">' +
       stat('Combined target', KSH(totTarget), T.lines.length + ' product lines') +
       stat('Won so far', KSH(totWon), fmt(pct(totWon, totTarget), 1) + '% of target', pct(totWon, totTarget) >= el ? 'good' : 'bad') +
@@ -1359,7 +1360,7 @@ function pgMethod(R){
       ', ' + fmt(DATA.jobs.length) + ' rows' + (DATA.loadedAt ? ', read ' + DATA.loadedAt.toLocaleString('en-GB') : '') + '.</td></tr>' +
     '<tr><td><b>Turnaround</b></td><td>Calendar days from the date drawings are received to the date the quotation is sent. Requests not yet quoted are excluded rather than counted as zero.</td></tr>' +
     '<tr><td><b>Win rate</b></td><td>Won requests divided by requests the client has decided. Undecided requests are excluded from both sides.</td></tr>' +
-    '<tr><td><b>Month</b></td><td>A request belongs to the month it was received. Won value is counted on the date won where the log records one, otherwise on the date received.</td></tr>' +
+    '<tr><td><b>Month</b></td><td>A request belongs to the month it was received. Won value is counted on the Date won where the log records one, otherwise on the date the quote was submitted (the date received only if there is no quote date either).</td></tr>' +
     '<tr><td><b>Combined jobs</b></td><td>An Asili and LGS job is split between the two product lines in the proportions set in the dashboard, so the value is never counted twice.</td></tr>' +
     '<tr><td><b>Product names</b></td><td>Spelling variants are merged, so "ASILI", "Asili" and "Asili, LGS and gutters" are grouped sensibly rather than as separate products.</td></tr>' +
     '</tbody></table>' +
@@ -1870,7 +1871,7 @@ function reportData(){
   const inM = all.filter(j => j.received && j.received >= w.from && j.received <= w.to);
   const inP = all.filter(j => j.received && j.received >= pw.from && j.received <= pw.to);
   const quotedInM = all.filter(j => j.quoted && j.quoted >= w.from && j.quoted <= w.to);
-  const wonInM = all.filter(j => j.outcome === 'won' && j.received && j.received >= w.from && j.received <= w.to);
+  const wonInM = all.filter(j => j.outcome === 'won' && wonOn(j) && wonOn(j) >= w.from && wonOn(j) <= w.to);
   return { key:w.key, label:windowLabel(w), prevLabel:windowLabel(pw), w, pw,
     m:inM, p:inP, quotedInM, wonInM,
     tat:tatStats(inM), tatP:tatStats(inP), conv:convStats(inM), convP:convStats(inP),
