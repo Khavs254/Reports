@@ -391,6 +391,17 @@ function asDate(v){
   }
   return null;
 }
+/* a 'Won month' cell can be a real date, 'Oct 2026', '2026-10', '10/2026' or just 'October' */
+function asMonth(v, fallbackYear){
+  if(v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), 1);
+  if(typeof v !== 'string' || !v.trim()) return null;
+  const t = v.trim().toLowerCase();
+  let m = /^(\d{4})[\/\-](\d{1,2})$/.exec(t); if(m) return new Date(+m[1], +m[2] - 1, 1);
+  m = /^(\d{1,2})[\/\-](\d{4})$/.exec(t); if(m) return new Date(+m[2], +m[1] - 1, 1);
+  const mi = MON.findIndex(x => t.indexOf(x.toLowerCase()) === 0);
+  if(mi >= 0){ const y = /(\d{4})/.exec(t); return new Date(y ? +y[1] : (fallbackYear || TODAY.getFullYear()), mi, 1); }
+  const d = asDate(v); return d ? new Date(d.getFullYear(), d.getMonth(), 1) : null;
+}
 const ymd = d => d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) : '';
 const ym  = d => d ? d.getFullYear() + '-' + pad2(d.getMonth() + 1) : '';
 const ymLabel = k => { const [y, m] = k.split('-'); return MON[+m - 1] + ' ' + y; };
@@ -420,6 +431,7 @@ const FIELDS = [
   ['value',    ['sales value (ksh)','sales value','value','quote value','amount']],
   ['status',   ['status','analysis category','outcome']],
   ['temp',     ['lead temperature','lead qualification','temperature']],
+  ['wonMonth', ['won month','month won','month of win','month of order']],
   ['wonDate',  ['date won','won date','order date','date of order','date order received','date when client makes initial payments']],
   ['lastFup',  ['last follow-up','last follow up','last followup']],
   ['nextFup',  ['next follow-up due','next follow-up','next follow up','follow up date','next action']]
@@ -520,9 +532,11 @@ function buildJobs(picked){
       status, statusRaw,
       temp: canonTemp(tempRaw),
       wonDate: asDate(g(row, 'wonDate')),
+      wonMonth: null,
       lastFup: asDate(g(row, 'lastFup')),
       nextFup: asDate(g(row, 'nextFup'))
     };
+    j.wonMonth = asMonth(g(row, 'wonMonth'), (j.quoted || j.received || TODAY).getFullYear());
     j.outcome = outcomeOf(j.status || j.temp);
     j.tat = (j.received && j.quoted) ? daysBetween(j.received, j.quoted) : null;
     j.age = j.received ? daysBetween(j.received, TODAY) : null;
@@ -534,6 +548,8 @@ function buildJobs(picked){
 function findIssues(jobs, map){
   const out = [];
   const add = (kind, msg, rows) => out.push({ kind, msg, rows: rows.slice(0, 60), count: rows.length });
+  const futureWon = jobs.filter(j => j.outcome === 'won' && ((j.wonDate && j.wonDate > TODAY) || (j.wonMonth && j.wonMonth > TODAY)));
+  if(futureWon.length) add('bad', futureWon.length + ' won jobs have a Date won / Won month in the future. That date is ignored and the sale is counted on its quote date instead — correct the date in the log.', futureWon);
   const noType = jobs.filter(j => !j.type);
   if(noType.length) add('warn', noType.length + ' rows have no job type, so they are missing from every product breakdown.', noType);
   const noRep = jobs.filter(j => !j.rep);
@@ -592,9 +608,8 @@ function convStats(jobs){
   const openValue = jobs.filter(j => j.outcome === 'open').reduce((a, j) => a + j.value, 0);
   return { total:jobs.length, quoted:quoted.length, decided:decided.length, won:won.length,
     lost:decided.length - won.length, open:jobs.length - decided.length,
-    /* Win rate is won against every request received, including those still
-       sitting with the client. */
-    rateDecided:pct(won.length, jobs.length), rateOfDecided:pct(won.length, decided.length), rateAll:pct(won.length, jobs.length),
+    /* Win rate = won / decided (won + lost). rateAll is won / every request received. */
+    rateDecided:pct(won.length, decided.length), rateOfDecided:pct(won.length, decided.length), rateAll:pct(won.length, jobs.length),
     rateQuoted:pct(won.length, quoted.length),
     wonValue, allValue, openValue, valueRate:pct(wonValue, allValue),
     avgWon: won.length ? wonValue / won.length : 0 };
@@ -604,7 +619,7 @@ function groupBy(jobs, key){
   jobs.forEach(j => { const k = j[key] || '(blank)'; (m[k] = m[k] || []).push(j); });
   return Object.keys(m).map(k => {
     const g = m[k], c = convStats(g), t = tatStats(g);
-    return { key:k, jobs:g, n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, g.length), rateOfDecided:c.rateOfDecided,
+    return { key:k, jobs:g, n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, c.decided), rateOfDecided:c.rateOfDecided,
       value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, tatN:t.n };
   }).sort((a, b) => b.n - a.n);
 }
@@ -613,7 +628,7 @@ function byMonth(jobs){
   jobs.forEach(j => { if(!j.month) return; (m[j.month] = m[j.month] || []).push(j); });
   return Object.keys(m).sort().map(k => {
     const g = m[k], c = convStats(g), t = tatStats(g);
-    return { key:k, label:ymLabel(k), n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, g.length),
+    return { key:k, label:ymLabel(k), n:g.length, won:c.won, decided:c.decided, rate:pct(c.won, c.decided),
       value:c.allValue, wonValue:c.wonValue, tat:t.median, tatMean:t.mean, jobs:g };
   });
 }
@@ -792,7 +807,7 @@ function tabConv(){
       stat('Open pipeline', KSH(c.openValue), c.open + ' jobs awaiting a decision') +
     '</div>' +
     '<section class="card"><h2>Win rate by month</h2>' + lineChart(months.map(m => ({ k:m.label.slice(0, 3) + ' ' + m.label.slice(-2), v:m.rate })), { dp:1, suffix:'%' }) +
-      '<p class="hint">Won jobs as a share of every request received that month.</p></section>' +
+      '<p class="hint">Won jobs as a share of requests decided (won or lost) from that month.</p></section>' +
     '<div class="split2">' +
       '<section class="card"><h2>Why jobs are lost</h2>' + barChart(losses.map(l => ({ k:l.k, v:l.v, c:'var(--red)' }))) + '</section>' +
       '<section class="card"><h2>Win rate by product</h2>' +
@@ -883,9 +898,10 @@ function fyRange(y){
   return { from:new Date(y, s - 1, 1), to:new Date(y + 1, s - 1, 0) };
 }
 const fyLabel = y => (+T.fyStart === 1) ? String(y) : (y + '/' + String(y + 1).slice(2));
-/* a won job counts on the date it was won; if that is blank, on the date the quote was submitted;
-   received is only a last resort when neither is recorded */
-const wonOn = j => j.wonDate || j.quoted || j.received;
+/* a won job counts on its won month/date; if blank, on the date quoted; received is the last resort */
+/* Order: Won month column, then Date won, then date quoted, then date received.
+   A win cannot be dated in the future, so a future won date/month is treated as a typo and skipped. */
+const wonOn = j => [j.wonMonth, j.wonDate].find(d => d && d <= TODAY) || j.quoted || j.received;
 const weightFor = (line, type) => (line.map && line.map[type] != null) ? num(line.map[type]) / 100 : 0;
 
 function lineFigures(line, y){
@@ -977,7 +993,7 @@ function tabTargets(){
     '<div class="toolbar"><span class="lbl">Financial year</span>' +
     '<select data-f="fy">' + years.map(y => '<option value="' + y + '"' + (y === ui.fy ? ' selected' : '') + '>' + fyLabel(y) + '</option>').join('') + '</select>' +
     '<span style="flex:1"></span><button class="btn" data-action="edit-targets">Edit targets</button></div>' +
-    (DATA.map.wonDate === undefined ? '<div class="alert warn"><b>No "Date won" column in the log.</b> Won value is being counted in the month the quote was <i>submitted</i>. Add a Date won column to the log for the exact month the order came in.</div>' : '') +
+    ((DATA.map.wonDate === undefined && DATA.map.wonMonth === undefined) ? '<div class="alert warn"><b>No "Date won" column in the log.</b> Won value is being counted in the month the quote was <i>submitted</i>. Add a Date won column to the log for the exact month the order came in.</div>' : '') +
     '<div class="stats">' +
       stat('Combined target', KSH(totTarget), T.lines.length + ' product lines') +
       stat('Won so far', KSH(totWon), fmt(pct(totWon, totTarget), 1) + '% of target', pct(totWon, totTarget) >= el ? 'good' : 'bad') +
@@ -1062,6 +1078,7 @@ function packJobs(jobs){
     const o = { r:j.row, c:j.client, t:j.type, tr:j.typeRaw, p:j.rep, d:j.designer,
       v:j.value, s:j.status, sr:j.statusRaw, m:j.temp, f:j.ref };
     DKEYS.forEach(k => { if(j[k]) o[k[0] + (k === 'quoted' ? 'q' : k === 'wonDate' ? 'w' : k === 'lastFup' ? 'l' : k === 'nextFup' ? 'n' : 'r')] = ymd(j[k]); });
+    if(j.wonMonth) o.wm = ymd(j.wonMonth);
     return o;
   });
 }
@@ -1069,7 +1086,7 @@ function unpackJobs(rows){
   return rows.map(o => {
     const j = { row:o.r, client:o.c || '', type:o.t || '', typeRaw:o.tr || '', rep:o.p || '', designer:o.d || '',
       value:num(o.v), status:o.s || '', statusRaw:o.sr || '', temp:o.m || '', ref:o.f || '',
-      received:asDate(o.rr), quoted:asDate(o.qq), wonDate:asDate(o.ww), lastFup:asDate(o.ll), nextFup:asDate(o.nn) };
+      received:asDate(o.rr), quoted:asDate(o.qq), wonDate:asDate(o.ww), wonMonth:asDate(o.wm), lastFup:asDate(o.ll), nextFup:asDate(o.nn) };
     j.outcome = outcomeOf(j.status || j.temp);
     j.tat = (j.received && j.quoted) ? daysBetween(j.received, j.quoted) : null;
     j.age = j.received ? daysBetween(j.received, TODAY) : null;
@@ -1252,7 +1269,7 @@ function pgTurnaround(R){
 
 /* ---------- won figures grouped by the date the work was won ----------
    Requests / Decided / Win rate stay on the month the request was received.
-   Won and Value won use wonOn(): Date won, else date quoted, else date received. */
+   Won and Value won use wonOn(): Won month, else Date won, else date quoted, else date received. */
 function wonRows(R, key){
   const grp = groupBy(R.m, key), idx = {};
   grp.forEach(g => { idx[g.key] = g; g.won = 0; g.wonValue = 0; });
@@ -1274,7 +1291,7 @@ function wonTrend(){
     return { key:k, label:ymLabel(k), n:m ? m.n : 0, decided:m ? m.decided : 0, rate:m ? m.rate : 0,
       tat:m ? m.tat : 0, won:w[k] ? w[k].n : 0, wonValue:w[k] ? w[k].v : 0 }; });
 }
-const rateCell = g => g.n ? fmt(g.rate, 1) + '%' : '\u2014';
+const rateCell = g => g.decided ? fmt(g.rate, 1) + '%' : '\u2014';
 
 /* ---------- page 3: conversion ---------- */
 function pgConversion(R){
@@ -1287,8 +1304,8 @@ function pgConversion(R){
   const lossRows = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
   const months = wonTrend();
   return '<section class="rpage">' + pageHead(R, 'Conversion in detail') +
-    '<h2>Summary</h2><p>Win rate is work won against every request received, including those still with the client, so holding requests open never flatters it. ' +
-      'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>. ' + (c.decided - c.won) + ' were lost and ' + c.open + ' are still with the client.</p>' +
+    '<h2>Summary</h2><p>Win rate is work won divided by requests the client has decided (won or lost); requests still with the client are left out until they close. ' +
+      'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b> of the ' + c.decided + ' decided. ' + (c.decided - c.won) + ' were lost and ' + c.open + ' are still with the client.</p>' +
     rTable(['Measure', esc(R.label), esc(R.prevLabel)], [
       '<tr><td>Requests received</td>' + rc(fmt(c.total), 1) + rc(fmt(cp.total)) + '</tr>',
       '<tr><td>Decided</td>' + rc(fmt(c.decided)) + rc(fmt(cp.decided)) + '</tr>',
@@ -1301,7 +1318,7 @@ function pgConversion(R){
     '<h2>By sales rep</h2>' +
     rTable(['Sales rep', 'Requests', 'Decided', 'Won', 'Win rate', 'Value won'], reps.map(g =>
       '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(rateCell(g), 1) + rc(fmt(g.wonValue)) + '</tr>'),
-      'Won and value won count work won in this period (date won, else date quoted). Requests, decided and win rate count requests received in this period.') +
+      'Won and value won count work won in this period (won month/date, else date quoted). Requests, decided and win rate count requests received in this period.') +
     '<h2>By designer</h2>' +
     rTable(['Designer', 'Requests', 'Decided', 'Won', 'Win rate'], des.map(g =>
       '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(rateCell(g)) + '</tr>')) +
@@ -1315,7 +1332,7 @@ function pgConversion(R){
     '<h2>Twelve-month trend</h2>' +
     rTable(['Month', 'Received', 'Decided', 'Won', 'Win rate', 'Median TAT'], months.map(m =>
       '<tr><td>' + m.label + '</td>' + rc(fmt(m.n)) + rc(fmt(m.decided)) + rc(fmt(m.won)) + rc(rateCell(m)) + rc(m.n ? fmt(m.tat, 1) : '\u2014') + '</tr>'),
-      'Won is counted in the month the work was won (date won, else date quoted). Received, decided, win rate and turnaround follow the month the request was received. Recent months still hold undecided requests, so their rate will rise as those close.') +
+      'Won is counted in the month the work was won (won month/date, else date quoted). Received, decided, win rate and turnaround follow the month the request was received. Recent months still hold undecided requests, so their rate will rise as those close.') +
     '</section>';
 }
 
@@ -1387,7 +1404,7 @@ function pgMethod(R){
       ', ' + fmt(DATA.jobs.length) + ' rows' + (DATA.loadedAt ? ', read ' + DATA.loadedAt.toLocaleString('en-GB') : '') + '.</td></tr>' +
     '<tr><td><b>Turnaround</b></td><td>Calendar days from the date drawings are received to the date the quotation is sent. Requests not yet quoted are excluded rather than counted as zero.</td></tr>' +
     '<tr><td><b>Win rate</b></td><td>Won requests divided by requests the client has decided. Undecided requests are excluded from both sides.</td></tr>' +
-    '<tr><td><b>Month</b></td><td>A request belongs to the month it was received. Won value is counted on the Date won where the log records one, otherwise on the date the quote was submitted (the date received only if there is no quote date either).</td></tr>' +
+    '<tr><td><b>Month</b></td><td>A request belongs to the month it was received. Won value is counted on the Won month / Date won where the log records one (a future date is ignored as a typo), otherwise on the date the quote was submitted (the date received only if there is no quote date either).</td></tr>' +
     '<tr><td><b>Combined jobs</b></td><td>An Asili and LGS job is split between the two product lines in the proportions set in the dashboard, so the value is never counted twice.</td></tr>' +
     '<tr><td><b>Product names</b></td><td>Spelling variants are merged, so "ASILI", "Asili" and "Asili, LGS and gutters" are grouped sensibly rather than as separate products.</td></tr>' +
     '</tbody></table>' +
@@ -1898,7 +1915,7 @@ function reportData(){
   const inM = all.filter(j => j.received && j.received >= w.from && j.received <= w.to);
   const inP = all.filter(j => j.received && j.received >= pw.from && j.received <= pw.to);
   const quotedInM = all.filter(j => j.quoted && j.quoted >= w.from && j.quoted <= w.to);
-  /* won work is placed by the date it was won (Date won, else date quoted), not the month it was requested */
+  /* won work is placed by the date it was won (Won month/Date won, else date quoted), not the month it was requested */
   const wonIn = win => all.filter(j => j.outcome === 'won' && wonOn(j) && wonOn(j) >= win.from && wonOn(j) <= win.to);
   const wonInM = wonIn(w), wonInP = wonIn(pw);
   const wonValM = wonInM.reduce((a, j) => a + j.value, 0), wonValP = wonInP.reduce((a, j) => a + j.value, 0);
