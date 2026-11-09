@@ -1250,45 +1250,72 @@ function pgTurnaround(R){
     '</section>';
 }
 
+/* ---------- won figures grouped by the date the work was won ----------
+   Requests / Decided / Win rate stay on the month the request was received.
+   Won and Value won use wonOn(): Date won, else date quoted, else date received. */
+function wonRows(R, key){
+  const grp = groupBy(R.m, key), idx = {};
+  grp.forEach(g => { idx[g.key] = g; g.won = 0; g.wonValue = 0; });
+  R.wonInM.forEach(j => {
+    const k = j[key] || '(blank)';
+    let g = idx[k];
+    if(!g){ g = { key:k, jobs:[], n:0, decided:0, rate:0, won:0, wonValue:0 }; idx[k] = g; grp.push(g); }
+    g.won++; g.wonValue += j.value;
+  });
+  return grp.sort((a, b) => (b.n - a.n) || (b.won - a.won));
+}
+function wonTrend(){
+  const bm = {}; byMonth(DATA.jobs).forEach(m => { bm[m.key] = m; });
+  const w = {};
+  DATA.jobs.forEach(j => { if(j.outcome !== 'won') return; const d = wonOn(j); if(!d) return;
+    const k = ym(d); (w[k] = w[k] || { n:0, v:0 }); w[k].n++; w[k].v += j.value; });
+  const keys = Object.keys(Object.assign({}, bm, w)).sort().slice(-12);
+  return keys.map(k => { const m = bm[k];
+    return { key:k, label:ymLabel(k), n:m ? m.n : 0, decided:m ? m.decided : 0, rate:m ? m.rate : 0,
+      tat:m ? m.tat : 0, won:w[k] ? w[k].n : 0, wonValue:w[k] ? w[k].v : 0 }; });
+}
+const rateCell = g => g.n ? fmt(g.rate, 1) + '%' : '\u2014';
+
 /* ---------- page 3: conversion ---------- */
 function pgConversion(R){
   const jobs = R.m, c = R.conv, cp = R.convP;
-  const reps = groupBy(jobs, 'rep').sort((a, b) => b.n - a.n);
-  const des = groupBy(jobs, 'designer').sort((a, b) => b.n - a.n);
-  const types = groupBy(jobs, 'type');
+  const reps = wonRows(R, 'rep');
+  const des = wonRows(R, 'designer');
+  const types = wonRows(R, 'type');
   const losses = {};
   jobs.filter(j => j.outcome === 'lost').forEach(j => { const k = j.status || 'Not stated'; losses[k] = (losses[k] || 0) + 1; });
   const lossRows = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
-  const months = byMonth(DATA.jobs).slice(-12);
+  const months = wonTrend();
   return '<section class="rpage">' + pageHead(R, 'Conversion in detail') +
     '<h2>Summary</h2><p>Win rate is work won against every request received, including those still with the client, so holding requests open never flatters it. ' +
       'Of the ' + c.total + ' requests received in ' + esc(R.label) + ', <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>. ' + (c.decided - c.won) + ' were lost and ' + c.open + ' are still with the client.</p>' +
     rTable(['Measure', esc(R.label), esc(R.prevLabel)], [
       '<tr><td>Requests received</td>' + rc(fmt(c.total), 1) + rc(fmt(cp.total)) + '</tr>',
       '<tr><td>Decided</td>' + rc(fmt(c.decided)) + rc(fmt(cp.decided)) + '</tr>',
-      '<tr><td>Won</td>' + rc(fmt(c.won), 1) + rc(fmt(cp.won)) + '</tr>',
+      '<tr><td>Won (by date won)</td>' + rc(fmt(R.wonInM.length), 1) + rc(fmt(R.wonInP.length)) + '</tr>',
       '<tr><td>Win rate on decided</td>' + rc(fmt(c.rateDecided, 1) + '%', 1) + rc(cp.decided ? fmt(cp.rateDecided, 1) + '%' : '—') + '</tr>',
       '<tr><td>Value quoted</td>' + rc(fmt(c.allValue)) + rc(fmt(cp.allValue)) + '</tr>',
-      '<tr><td>Value won</td>' + rc(fmt(c.wonValue), 1) + rc(fmt(cp.wonValue)) + '</tr>',
+      '<tr><td>Value won (by date won)</td>' + rc(fmt(R.wonValM), 1) + rc(fmt(R.wonValP)) + '</tr>',
       '<tr><td>Still open (value)</td>' + rc(fmt(c.openValue)) + rc(fmt(cp.openValue)) + '</tr>'
     ]) +
     '<h2>By sales rep</h2>' +
     rTable(['Sales rep', 'Requests', 'Decided', 'Won', 'Win rate', 'Value won'], reps.map(g =>
-      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%', 1) + rc(fmt(g.wonValue)) + '</tr>')) +
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(rateCell(g), 1) + rc(fmt(g.wonValue)) + '</tr>'),
+      'Won and value won count work won in this period (date won, else date quoted). Requests, decided and win rate count requests received in this period.') +
     '<h2>By designer</h2>' +
     rTable(['Designer', 'Requests', 'Decided', 'Won', 'Win rate'], des.map(g =>
-      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%') + '</tr>')) +
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(rateCell(g)) + '</tr>')) +
     '<h2>By product</h2>' +
     rTable(['Product', 'Requests', 'Decided', 'Won', 'Win rate', 'Value won'], types.map(g =>
-      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(fmt(g.rate, 1) + '%') + rc(fmt(g.wonValue)) + '</tr>')) +
+      '<tr><td>' + esc(g.key) + '</td>' + rc(fmt(g.n)) + rc(fmt(g.decided)) + rc(fmt(g.won)) + rc(rateCell(g)) + rc(fmt(g.wonValue)) + '</tr>')) +
     '<h2>Why work was lost</h2>' +
     rTable(['Reason', 'Jobs', 'Share of losses'], lossRows.map(k =>
       '<tr><td>' + esc(k) + '</td>' + rc(fmt(losses[k])) + rc(fmt(pct(losses[k], c.lost), 1) + '%') + '</tr>'),
       'Reasons come from the status column. Anything sitting as unresponsive is a follow-up failure rather than a commercial loss.') +
     '<h2>Twelve-month trend</h2>' +
     rTable(['Month', 'Received', 'Decided', 'Won', 'Win rate', 'Median TAT'], months.map(m =>
-      '<tr><td>' + m.label + '</td>' + rc(fmt(m.n)) + rc(fmt(m.decided)) + rc(fmt(m.won)) + rc(fmt(m.rate, 1) + '%') + rc(fmt(m.tat, 1)) + '</tr>'),
-      'Recent months still hold undecided requests, so their rate will rise as those close. Read the older months for trend.') +
+      '<tr><td>' + m.label + '</td>' + rc(fmt(m.n)) + rc(fmt(m.decided)) + rc(fmt(m.won)) + rc(rateCell(m)) + rc(m.n ? fmt(m.tat, 1) : '\u2014') + '</tr>'),
+      'Won is counted in the month the work was won (date won, else date quoted). Received, decided, win rate and turnaround follow the month the request was received. Recent months still hold undecided requests, so their rate will rise as those close.') +
     '</section>';
 }
 
@@ -1871,9 +1898,12 @@ function reportData(){
   const inM = all.filter(j => j.received && j.received >= w.from && j.received <= w.to);
   const inP = all.filter(j => j.received && j.received >= pw.from && j.received <= pw.to);
   const quotedInM = all.filter(j => j.quoted && j.quoted >= w.from && j.quoted <= w.to);
-  const wonInM = all.filter(j => j.outcome === 'won' && wonOn(j) && wonOn(j) >= w.from && wonOn(j) <= w.to);
+  /* won work is placed by the date it was won (Date won, else date quoted), not the month it was requested */
+  const wonIn = win => all.filter(j => j.outcome === 'won' && wonOn(j) && wonOn(j) >= win.from && wonOn(j) <= win.to);
+  const wonInM = wonIn(w), wonInP = wonIn(pw);
+  const wonValM = wonInM.reduce((a, j) => a + j.value, 0), wonValP = wonInP.reduce((a, j) => a + j.value, 0);
   return { key:w.key, label:windowLabel(w), prevLabel:windowLabel(pw), w, pw,
-    m:inM, p:inP, quotedInM, wonInM,
+    m:inM, p:inP, quotedInM, wonInM, wonInP, wonValM, wonValP,
     tat:tatStats(inM), tatP:tatStats(inP), conv:convStats(inM), convP:convStats(inP),
     fup:followUps(all.filter(j => j.outcome === 'open')) };
 }
@@ -1888,7 +1918,7 @@ function reportHTML(){
   const R = reportData();
   const c = R.conv, t = R.tat, cp = R.convP, tp = R.tatP;
   const topTypes = groupBy(R.m, 'type').slice(0, 6);
-  const reps = groupBy(R.m, 'rep').filter(g => g.n >= 2).slice(0, 8);
+  const reps = wonRows(R, 'rep').filter(g => g.n >= 2 || g.won > 0).slice(0, 8);
   const losses = {};
   R.m.filter(j => j.outcome === 'lost').forEach(j => { const k = j.status || 'Not stated'; losses[k] = (losses[k] || 0) + 1; });
   const lossList = Object.keys(losses).sort((a, b) => losses[b] - losses[a]);
@@ -1903,7 +1933,7 @@ function reportHTML(){
       '<div><div class="k">REQUESTS RECEIVED</div><div class="v">' + fmt(c.total) + '</div><div class="k">' + delta(c.total, cp.total, false, 0) + ' vs ' + esc(R.prevLabel) + '</div></div>' +
       '<div><div class="k">MEDIAN QUOTE TAT</div><div class="v">' + fmt(t.median, 1) + ' d</div><div class="k">' + delta(t.median, tp.median, true, 1, ' d') + ' vs ' + esc(R.prevLabel) + '</div></div>' +
       '<div><div class="k">WIN RATE</div><div class="v">' + fmt(c.rateDecided, 1) + '%</div><div class="k">' + delta(c.rateDecided, cp.rateDecided, false, 1, ' pts') + ' vs ' + esc(R.prevLabel) + '</div></div>' +
-      '<div><div class="k">WON VALUE</div><div class="v">' + fmt(c.wonValue, 0) + '</div><div class="k">KSh, from ' + c.won + ' jobs</div></div>' +
+      '<div><div class="k">WON VALUE</div><div class="v">' + fmt(R.wonValM, 0) + '</div><div class="k">KSh, from ' + R.wonInM.length + ' jobs won in ' + esc(R.label) + '</div></div>' +
     '</div>' +
     '<h2>Turnaround</h2>' +
     '<p>' + t.n + ' of the ' + c.total + ' requests received in ' + esc(R.label) + ' have been quoted. Half went out within <b>' + fmt(t.median, 1) + ' days</b> ' +
@@ -1914,10 +1944,10 @@ function reportHTML(){
     '<h2>Conversion</h2>' +
     '<p>Of the ' + c.total + ' requests received, <b>' + c.won + '</b> were won \u2014 a win rate of <b>' + fmt(c.rateDecided, 1) + '%</b>' +
       (cp.decided ? ' against ' + fmt(cp.rateDecided, 1) + '% in ' + esc(R.prevLabel) : '') + '. ' +
-      'Won work is worth <b>KSh ' + fmt(c.wonValue) + '</b> of the KSh ' + fmt(c.allValue) + ' quoted. ' +
+      'Work won in ' + esc(R.label) + ' is worth <b>KSh ' + fmt(R.wonValM) + '</b> (' + R.wonInM.length + ' jobs, counted by date won). KSh ' + fmt(c.allValue) + ' was quoted on requests received. ' +
       c.open + ' requests are still with the client, carrying KSh ' + fmt(c.openValue) + '.</p>' +
     tbl(['Sales rep', 'Requests', 'Decided', 'Won', 'Win rate'], reps.map(g =>
-      '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.n) + '</td><td class="r">' + fmt(g.decided) + '</td><td class="r">' + fmt(g.won) + '</td><td class="r">' + fmt(g.rate, 1) + '%</td></tr>')) +
+      '<tr><td>' + esc(g.key) + '</td><td class="r">' + fmt(g.n) + '</td><td class="r">' + fmt(g.decided) + '</td><td class="r">' + fmt(g.won) + '</td><td class="r">' + (g.n ? fmt(g.rate, 1) + '%' : '\u2014') + '</td></tr>')) +
     (lossList.length ? '<p class="note">Reasons given for losses this month: ' + lossList.map(k => esc(k) + ' (' + losses[k] + ')').join(', ') + '.</p>' : '') +
     '<h2>Open pipeline and follow-ups</h2>' +
     '<p>Across all months, <b>' + R.fup.open.length + '</b> requests are still awaiting a client decision, worth <b>KSh ' + fmt(R.fup.open.reduce((a, j) => a + j.value, 0)) + '</b>. ' +
@@ -1961,7 +1991,7 @@ function reportText(){
   L.push('Median quote turnaround: ' + fmt(t.median, 1) + ' days' + (tp.n ? ' (' + R.prevLabel + ': ' + fmt(tp.median, 1) + ')' : ''));
   L.push('Quoted within 2 days: ' + fmt(t.within2, 0) + '%   |   over a week: ' + fmt(t.over7, 1) + '%');
   L.push('Win rate (decided): ' + fmt(c.rateDecided, 1) + '%' + (cp.decided ? ' (' + R.prevLabel + ': ' + fmt(cp.rateDecided, 1) + '%)' : ''));
-  L.push('Won: ' + c.won + ' jobs, KSh ' + fmt(c.wonValue));
+  L.push('Won in ' + R.label + ': ' + R.wonInM.length + ' jobs, KSh ' + fmt(R.wonValM));
   L.push('Still open: ' + c.open + ' jobs, KSh ' + fmt(c.openValue));
   L.push('');
   if(typeof SALES !== 'undefined' && SALES.rows && SALES.rows.length){
